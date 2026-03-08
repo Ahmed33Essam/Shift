@@ -970,12 +970,14 @@
     background: white;
     border: 2px solid var(--accent);
     border-radius: var(--radius-sm);
-    z-index: 50;
+    z-index: 999;
     padding: 8px;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 4px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    max-height: 250px;
+    overflow-y: auto;
   }
   .multi-select-option {
     display: flex;
@@ -1002,24 +1004,36 @@
 
   /* ===== CERT UPLOAD ===== */
   .cert-upload-area {
-    border: 2px dashed var(--border);
-    border-radius: var(--radius-sm);
-    padding: 24px;
+    border: 2px dashed var(--accent);
+    border-radius: var(--radius);
+    padding: 28px 20px;
     text-align: center;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     flex-direction: column;
     align-items: center;
+    background: #fafffe;
   }
-  .cert-upload-area:hover { border-color: var(--accent); background: var(--accent-light); }
+  .cert-upload-area:hover {
+    border-color: var(--accent-hover);
+    background: var(--accent-light);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0,184,148,0.15);
+  }
   .cert-thumb {
-    width: 80px;
-    height: 80px;
+    width: 90px;
+    height: 90px;
     object-fit: cover;
     border-radius: 10px;
     border: 2px solid var(--border);
-    position: relative;
+    transition: all 0.2s;
+    display: block;
+  }
+  .cert-thumb:hover {
+    border-color: var(--accent);
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   }
   .cert-thumb-wrap {
     position: relative;
@@ -1180,7 +1194,7 @@
               <input type="number" id="nurseExp" placeholder="3" min="0" max="50">
             </div>
           </div>
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom:24px;position:relative;z-index:10">
             <label>التخصصات (اختر أكتر من واحد)</label>
             <div class="multi-select-box" id="specSelectBox">
               <div class="multi-select-chosen" id="specChosen" onclick="toggleSpecDropdown()">
@@ -1205,14 +1219,31 @@
             <input type="hidden" id="specData">
           </div>
           <div class="form-group">
-            <label>صور الشهادات والاعتمادات</label>
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="background:var(--accent);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px">
+                <i class="fas fa-certificate"></i>
+              </span>
+              صور الشهادات والاعتمادات
+              <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(اختياري)</span>
+            </label>
+            <div style="background:var(--accent-light);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--accent);display:flex;align-items:flex-start;gap:8px">
+              <i class="fas fa-info-circle" style="margin-top:2px;flex-shrink:0"></i>
+              <span>شهاداتك مثل BLS وACLS بتزيد فرصك بشكل كبير — المستشفى بيشوفها أثناء مراجعة طلبك</span>
+            </div>
             <div class="cert-upload-area" id="certUploadArea" onclick="document.getElementById('certImagesInput').click()">
-              <i class="fas fa-cloud-upload-alt" style="font-size:28px;color:var(--text-muted);margin-bottom:8px"></i>
-              <div style="font-weight:600;color:var(--text-muted);font-size:14px">اضغط لرفع صور الشهادات</div>
-              <div style="font-size:12px;color:var(--text-muted);margin-top:4px">JPG, PNG — يمكن رفع أكتر من صورة</div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                <div style="width:56px;height:56px;background:var(--accent-light);border-radius:50%;display:flex;align-items:center;justify-content:center">
+                  <i class="fas fa-cloud-upload-alt" style="font-size:24px;color:var(--accent)"></i>
+                </div>
+                <div style="font-weight:700;color:var(--text);font-size:14px">اسحب الصور هنا أو اضغط للاختيار</div>
+                <div style="font-size:12px;color:var(--text-muted)">JPG أو PNG • يمكن اختيار أكتر من صورة</div>
+                <div style="background:var(--accent);color:white;padding:7px 20px;border-radius:100px;font-size:13px;font-weight:700;margin-top:4px">
+                  <i class="fas fa-plus"></i> اختر الصور
+                </div>
+              </div>
             </div>
             <input type="file" id="certImagesInput" multiple accept="image/*" class="hidden" onchange="handleCertImages(event)">
-            <div id="certPreviewGrid" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"></div>
+            <div id="certPreviewGrid" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px"></div>
           </div>
           <div class="form-group">
             <label>نبذة عنك</label>
@@ -1264,11 +1295,11 @@
         <div class="form-row">
           <div class="form-group">
             <label>كلمة المرور *</label>
-            <input type="password" id="regPass" placeholder="••••••••">
+            <input type="password" id="regPass" placeholder="••••••••" autocomplete="new-password">
           </div>
           <div class="form-group">
             <label>تأكيد كلمة المرور *</label>
-            <input type="password" id="regPassConfirm" placeholder="••••••••">
+            <input type="password" id="regPassConfirm" placeholder="••••••••" autocomplete="new-password">
           </div>
         </div>
 
@@ -1285,7 +1316,7 @@
         </div>
         <div class="form-group">
           <label>كلمة المرور</label>
-          <input type="password" id="loginPass" placeholder="••••••••">
+          <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
         </div>
         <button type="button" class="btn btn-primary btn-lg w-full" id="loginBtn" onclick="handleLogin(event)">
           <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
@@ -1454,6 +1485,7 @@
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('hospital', 'myjobs', this)"><i class="fas fa-list-alt"></i> وظائفي</button>
       <button class="tab-btn" onclick="switchTab('hospital', 'applications', this)"><i class="fas fa-inbox"></i> الطلبات الواردة</button>
+      <button class="tab-btn" onclick="switchTab('hospital', 'completed', this)"><i class="fas fa-check-circle"></i> الوظائف المكتملة</button>
     </div>
 
     <!-- My Jobs Tab -->
@@ -1466,6 +1498,13 @@
     <!-- Applications Tab -->
     <div id="hospital-tab-applications" class="hidden">
       <div id="hospitalApplicationsList">
+        <div class="loading"><div class="spinner"></div> جاري التحميل...</div>
+      </div>
+    </div>
+
+    <!-- Completed Jobs Tab -->
+    <div id="hospital-tab-completed" class="hidden">
+      <div id="hospitalCompletedList">
         <div class="loading"><div class="spinner"></div> جاري التحميل...</div>
       </div>
     </div>
@@ -1617,7 +1656,7 @@
             <input type="number" id="editNurseExp" min="0">
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" style="margin-bottom:24px;position:relative;z-index:10">
           <label>التخصصات (اختر أكتر من واحد)</label>
           <div class="multi-select-box" id="editSpecSelectBox">
             <div class="multi-select-chosen" id="editSpecChosen" onclick="toggleEditSpecDropdown()">
@@ -1643,6 +1682,23 @@
         <div class="form-group">
           <label>نبذة عنك</label>
           <textarea id="editNurseBio"></textarea>
+        </div>
+        <div class="form-group">
+          <label>📎 صور الشهادات والاعتمادات</label>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;line-height:1.6">
+            شهاداتك المحفوظة — اضغط على أي صورة لعرضها أو اضغط × لحذفها.
+          </p>
+          <div id="existingCertsGrid" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px"></div>
+          <div class="cert-upload-area" onclick="document.getElementById('editCertInput').click()">
+            <i class="fas fa-cloud-upload-alt" style="font-size:32px;color:var(--accent);margin-bottom:8px"></i>
+            <div style="font-weight:700;color:var(--text);font-size:14px">اضغط هنا لإضافة شهادات جديدة</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:5px">JPG أو PNG</div>
+            <div style="margin-top:10px;background:var(--accent-light);color:var(--accent);padding:5px 14px;border-radius:100px;font-size:12px;font-weight:700;display:inline-block">
+              <i class="fas fa-plus"></i> إضافة صور
+            </div>
+          </div>
+          <input type="file" id="editCertInput" multiple accept="image/*" class="hidden" onchange="handleEditCertImages(event)">
+          <div id="editCertPreviewGrid" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px"></div>
         </div>
       </form>
     </div>
@@ -1771,24 +1827,122 @@ var certImageFiles = [];
 
 function handleCertImages(event) {
   var files = Array.from(event.target.files);
+  if (!files.length) return;
   files.forEach(function(file) {
+    var idx = certImageFiles.length;
     certImageFiles.push(file);
     var reader = new FileReader();
     reader.onload = function(e) {
       var wrap = document.createElement('div');
       wrap.className = 'cert-thumb-wrap';
-      var idx = certImageFiles.length - 1;
-      wrap.innerHTML = '<img class="cert-thumb" src="' + e.target.result + '" title="' + file.name + '">' +
-        '<button class="cert-thumb-remove" onclick="removeCertImage(' + idx + ', this.parentNode)">×</button>';
+      var img = document.createElement('img');
+      img.className = 'cert-thumb';
+      img.src = e.target.result;
+      img.title = file.name;
+      var btn = document.createElement('button');
+      btn.className = 'cert-thumb-remove';
+      btn.textContent = '×';
+      btn.onclick = (function(i, w) {
+        return function() { certImageFiles[i] = null; w.remove(); };
+      })(idx, wrap);
+      wrap.appendChild(img);
+      wrap.appendChild(btn);
       document.getElementById('certPreviewGrid').appendChild(wrap);
     };
     reader.readAsDataURL(file);
   });
+  // Reset input so same files can be selected again
+  event.target.value = '';
 }
 
 function removeCertImage(idx, el) {
   certImageFiles[idx] = null;
   if (el) el.remove();
+}
+
+// Upload cert images to Supabase Storage and return URLs
+async function uploadCertImages(userId) {
+  var urls = [];
+  var files = certImageFiles.filter(function(f) { return f !== null; });
+  for (var i = 0; i < files.length; i++) {
+    var file = files[i];
+    var ext = file.name.split('.').pop();
+    var path = userId + '/' + Date.now() + '_' + i + '.' + ext;
+    var { data, error } = await sb.storage.from('certificates').upload(path, file, { upsert: true });
+    if (!error) {
+      var { data: urlData } = sb.storage.from('certificates').getPublicUrl(path);
+      urls.push(urlData.publicUrl);
+    } else {
+      console.error('Upload error:', error);
+    }
+  }
+  return urls;
+}
+
+// Load and display existing certificates in profile modal
+async function loadCertificates() {
+  var urls = currentProfile ? (currentProfile.certificates_urls || []) : [];
+  var grid = document.getElementById('existingCertsGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  urls.forEach(function(url, i) {
+    var wrap = document.createElement('div');
+    wrap.className = 'cert-thumb-wrap';
+    var img = document.createElement('img');
+    img.className = 'cert-thumb';
+    img.src = url;
+    img.style.cursor = 'pointer';
+    img.onclick = function() { window.open(url, '_blank'); };
+    var btn = document.createElement('button');
+    btn.className = 'cert-thumb-remove';
+    btn.textContent = '×';
+    btn.onclick = function() { deleteCertificate(url, wrap); };
+    wrap.appendChild(img);
+    wrap.appendChild(btn);
+    grid.appendChild(wrap);
+  });
+}
+
+async function deleteCertificate(url, el) {
+  var path = url.split('/certificates/')[1];
+  if (path) {
+    await sb.storage.from('certificates').remove([decodeURIComponent(path)]);
+  }
+  var urls = (currentProfile ? (currentProfile.certificates_urls || []) : []).filter(function(u) { return u !== url; });
+  await sb.from('nurses').update({ certificates_urls: urls }).eq('id', currentUser.id);
+  if (currentProfile) currentProfile.certificates_urls = urls;
+  if (el) el.remove();
+}
+
+// Handle new cert images in edit modal
+var editCertFiles = [];
+function handleEditCertImages(event) {
+  var files = Array.from(event.target.files);
+  if (!files.length) return;
+  files.forEach(function(file) {
+    var idx = editCertFiles.length;
+    editCertFiles.push(file);
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var wrap = document.createElement('div');
+      wrap.className = 'cert-thumb-wrap';
+      var img = document.createElement('img');
+      img.className = 'cert-thumb';
+      img.src = e.target.result;
+      img.title = file.name;
+      var btn = document.createElement('button');
+      btn.className = 'cert-thumb-remove';
+      btn.textContent = '×';
+      btn.onclick = (function(i, w) {
+        return function() { editCertFiles[i] = null; w.remove(); };
+      })(idx, wrap);
+      wrap.appendChild(img);
+      wrap.appendChild(btn);
+      document.getElementById('editCertPreviewGrid').appendChild(wrap);
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
 }
 
 // ========== SUPABASE INIT ==========
@@ -1862,6 +2016,7 @@ function switchTab(dashboard, tab, btn) {
 
   if (dashboard === 'nurse' && tab === 'myapps') loadMyApplications();
   if (dashboard === 'hospital' && tab === 'applications') loadHospitalApplications();
+  if (dashboard === 'hospital' && tab === 'completed') loadCompletedJobs();
 }
 
 // ========== ALERTS ==========
@@ -2219,6 +2374,7 @@ async function loadHospitalJobs() {
   const { data: jobs } = await sb.from('job_postings')
     .select(`*, applications(id)`)
     .eq('hospital_id', currentUser.id)
+    .eq('is_completed', false)
     .order('created_at', { ascending: false });
 
   document.getElementById('myJobsCount').textContent = jobs?.length || 0;
@@ -2273,6 +2429,70 @@ async function deleteJob(jobId) {
   loadHospitalStats();
 }
 
+async function loadCompletedJobs() {
+  document.getElementById('hospitalCompletedList').innerHTML = '<div class="loading"><div class="spinner"></div> جاري التحميل...</div>';
+
+  const { data: jobs } = await sb.from('job_postings')
+    .select('*, applications(id, status, nurses(full_name, city))')
+    .eq('hospital_id', currentUser.id)
+    .eq('is_completed', true)
+    .order('completed_at', { ascending: false });
+
+  if (!jobs?.length) {
+    document.getElementById('hospitalCompletedList').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🏆</div>
+        <h3>مفيش وظائف مكتملة بعد</h3>
+        <p>لما تقبل العدد المطلوب من الممرضين في أي وظيفة هتنتقل هنا تلقائياً</p>
+      </div>`;
+    return;
+  }
+
+  document.getElementById('hospitalCompletedList').innerHTML = `<div class="jobs-grid">${jobs.map(function(job) {
+    var acceptedNurses = (job.applications || []).filter(function(a) { return a.status === 'accepted'; });
+    var completedDate = job.completed_at ? new Date(job.completed_at).toLocaleDateString('ar-EG') : '';
+    return `
+      <div class="job-card" style="border:2px solid var(--accent);position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent),var(--primary))"></div>
+        <div class="job-card-header">
+          <div>
+            <div class="job-title" style="margin-bottom:4px">${job.title}</div>
+            <div class="hospital-city"><i class="fas fa-map-marker-alt"></i> ${job.city || '-'}</div>
+          </div>
+          <div>
+            <div class="job-badge" style="background:#d1fae5;color:#065f46">
+              <i class="fas fa-check-circle"></i> مكتملة
+            </div>
+          </div>
+        </div>
+        <div class="job-meta">
+          ${job.specialization ? `<div class="job-meta-item"><i class="fas fa-stethoscope"></i>${job.specialization}</div>` : ''}
+          <div class="job-meta-item"><i class="fas fa-users"></i>${acceptedNurses.length} / ${job.nurses_needed || 1} ممرض</div>
+          ${completedDate ? `<div class="job-meta-item"><i class="fas fa-calendar-check"></i>اكتملت ${completedDate}</div>` : ''}
+        </div>
+        ${acceptedNurses.length ? `
+        <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px">الممرضون المقبولون:</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            ${acceptedNurses.map(function(a) {
+              var n = a.nurses;
+              return `<div style="display:flex;align-items:center;gap:8px;font-size:13px">
+                <div class="nurse-avatar" style="width:28px;height:28px;font-size:12px">${n?.full_name?.substring(0,1) || '؟'}</div>
+                <span style="font-weight:600">${n?.full_name || 'ممرض'}</span>
+                ${n?.city ? `<span style="color:var(--text-muted)">• ${n.city}</span>` : ''}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
+        ${(job.salary_min || job.salary_max) ? `
+        <div class="salary-range" style="margin-top:12px">
+          <span class="salary-label">💰 الراتب</span>
+          <span class="salary-amount">${(job.salary_min||0).toLocaleString()} - ${(job.salary_max||0).toLocaleString()} جنيه</span>
+        </div>` : ''}
+      </div>`;
+  }).join('')}</div>`;
+}
+
 async function loadHospitalStats() {
   const { data: jobs } = await sb.from('job_postings').select('id').eq('hospital_id', currentUser.id);
   const jobIds = jobs?.map(j => j.id) || [];
@@ -2295,54 +2515,103 @@ async function loadHospitalStats() {
 async function loadHospitalApplications() {
   document.getElementById('hospitalApplicationsList').innerHTML = '<div class="loading"><div class="spinner"></div> جاري التحميل...</div>';
 
-  const { data: jobs } = await sb.from('job_postings').select('id').eq('hospital_id', currentUser.id);
-  const jobIds = jobs?.map(j => j.id) || [];
+  // Get active (non-completed) jobs with their applications
+  const { data: jobs } = await sb.from('job_postings')
+    .select('id, title, nurses_needed, city, shift_type')
+    .eq('hospital_id', currentUser.id)
+    .eq('is_completed', false)
+    .order('created_at', { ascending: false });
 
-  if (!jobIds.length) {
-    document.getElementById('hospitalApplicationsList').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📥</div><h3>مفيش طلبات لسه</h3></div>`;
+  if (!jobs?.length) {
+    document.getElementById('hospitalApplicationsList').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📥</div><h3>مفيش وظائف نشطة لسه</h3></div>`;
     return;
   }
 
+  const jobIds = jobs.map(j => j.id);
   const { data: apps } = await sb.from('applications')
-    .select(`*, job_postings(title), nurses(full_name, city, years_experience, specializations, expected_salary_min, expected_salary_max)`)
+    .select(`*, nurses(full_name, city, years_experience, specializations, bio, phone, certificates_urls)`)
     .in('job_id', jobIds)
     .order('created_at', { ascending: false });
 
-  if (!apps?.length) {
-    document.getElementById('hospitalApplicationsList').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📥</div><h3>مفيش طلبات واردة لسه</h3></div>`;
-    return;
-  }
+  window._apps = apps || [];
 
   const statusClass = { pending: 'status-pending', reviewed: 'status-reviewed', accepted: 'status-accepted', rejected: 'status-rejected' };
   const statusMap = { pending: 'قيد المراجعة', reviewed: 'تمت المراجعة', accepted: 'تم القبول', rejected: 'مرفوض' };
 
-  document.getElementById('hospitalApplicationsList').innerHTML = apps.map(app => {
-    const nurse = app.nurses;
-    return `
-      <div class="application-item" onclick="viewApplicant('${app.id}')" style="cursor:pointer">
-        <div class="nurse-avatar">${nurse?.full_name?.substring(0,1) || '؟'}</div>
-        <div class="application-info">
-          <div class="application-name">${nurse?.full_name || 'ممرض'}</div>
-          <div class="application-meta">
-            ${nurse?.city || ''} ${nurse?.years_experience ? '• ' + nurse.years_experience + ' سنة خبرة' : ''}
-            ${nurse?.specializations?.length ? '• ' + nurse.specializations.slice(0,2).join('، ') : ''}
+  // Group apps by job
+  var html = '';
+  var hasAnyApps = false;
+
+  jobs.forEach(function(job) {
+    var jobApps = (apps || []).filter(function(a) { return a.job_id === job.id; });
+    var acceptedCount = jobApps.filter(function(a) { return a.status === 'accepted'; }).length;
+    var needed = job.nurses_needed || 1;
+
+    hasAnyApps = hasAnyApps || jobApps.length > 0;
+
+    html += `
+      <div style="margin-bottom:24px">
+        <div style="background:var(--primary);color:white;border-radius:var(--radius) var(--radius) 0 0;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-weight:700;font-size:15px">${job.title}</div>
+            <div style="font-size:12px;opacity:0.85;margin-top:2px">
+              ${job.city ? `<span><i class="fas fa-map-marker-alt"></i> ${job.city}</span>` : ''}
+              ${job.shift_type ? `<span style="margin-right:10px"><i class="fas fa-clock"></i> ${job.shift_type}</span>` : ''}
+            </div>
           </div>
-          <div class="application-meta" style="margin-top:2px;font-size:12px;opacity:0.7">
-            على: ${app.job_postings?.title || ''} • ${new Date(app.created_at).toLocaleDateString('ar-EG')}
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:100px;font-size:12px;font-weight:700">
+              <i class="fas fa-users"></i> ${acceptedCount} / ${needed} مقبول
+            </div>
+            <div style="background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:100px;font-size:12px">
+              ${jobApps.length} طلب
+            </div>
           </div>
         </div>
-        <div class="status-badge ${statusClass[app.status]}">${statusMap[app.status]}</div>
+        <div style="border:2px solid var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);overflow:hidden">
+          ${jobApps.length === 0 ? `
+            <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:14px">
+              <i class="fas fa-inbox" style="font-size:24px;margin-bottom:8px;display:block;opacity:0.4"></i>
+              مفيش طلبات على هذه الوظيفة بعد
+            </div>` :
+            jobApps.map(function(app) {
+              var nurse = app.nurses;
+              return `
+                <div class="application-item" onclick="viewApplicant('${app.id}')" style="cursor:pointer;border-radius:0;border-bottom:1px solid var(--border)">
+                  <div class="nurse-avatar">${nurse?.full_name?.substring(0,1) || '؟'}</div>
+                  <div class="application-info">
+                    <div class="application-name">${nurse?.full_name || 'ممرض'}</div>
+                    <div class="application-meta">
+                      ${nurse?.city || ''} ${nurse?.years_experience ? '• ' + nurse.years_experience + ' سنة خبرة' : ''}
+                      ${nurse?.specializations?.length ? '• ' + nurse.specializations.slice(0,2).join('، ') : ''}
+                    </div>
+                    <div class="application-meta" style="margin-top:2px;font-size:12px;opacity:0.7">
+                      ${new Date(app.created_at).toLocaleDateString('ar-EG')}
+                    </div>
+                  </div>
+                  <div class="status-badge ${statusClass[app.status]}">${statusMap[app.status]}</div>
+                </div>`;
+            }).join('')
+          }
+        </div>
       </div>`;
-  }).join('');
+  });
 
-  // Store apps for viewing
-  window._apps = apps;
+  if (!hasAnyApps) {
+    document.getElementById('hospitalApplicationsList').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📥</div><h3>مفيش طلبات واردة لسه</h3></div>`;
+    return;
+  }
+
+  document.getElementById('hospitalApplicationsList').innerHTML = html;
 }
 
 function viewApplicant(appId) {
   const app = window._apps?.find(a => a.id === appId);
   if (!app) return;
   const nurse = app.nurses;
+
+  const certUrls = (nurse && nurse.certificates_urls && nurse.certificates_urls.length)
+    ? nurse.certificates_urls : [];
 
   document.getElementById('appDetailBody').innerHTML = `
     <div class="profile-hero" style="border-radius:var(--radius);margin-bottom:20px">
@@ -2351,21 +2620,53 @@ function viewApplicant(appId) {
       <div class="profile-meta">
         ${nurse?.city ? `<span><i class="fas fa-map-marker-alt"></i> ${nurse.city}</span>` : ''}
         ${nurse?.years_experience ? `<span><i class="fas fa-clock"></i> ${nurse.years_experience} سنة خبرة</span>` : ''}
+        ${nurse?.phone ? `<span><i class="fas fa-phone"></i> ${nurse.phone}</span>` : ''}
       </div>
     </div>
+
     ${nurse?.specializations?.length ? `
-    <div class="form-group">
-      <label style="font-size:13px;color:var(--text-muted);font-weight:700;margin-bottom:8px;display:block">التخصصات</label>
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;color:var(--text-muted);font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+        <i class="fas fa-stethoscope"></i> التخصصات
+      </div>
       <div class="benefits-list">${nurse.specializations.map(s => `<span class="benefit-tag">${s}</span>`).join('')}</div>
     </div>` : ''}
-    ${(nurse?.expected_salary_min || nurse?.expected_salary_max) ? `
-    <div class="salary-range" style="margin:16px 0">
-      <span class="salary-label">الراتب المتوقع</span>
-      <span class="salary-amount">${nurse.expected_salary_min?.toLocaleString() || '?'} - ${nurse.expected_salary_max?.toLocaleString() || '?'} جنيه</span>
+
+    ${nurse?.bio ? `
+    <div style="background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:var(--text-muted);margin-bottom:6px;display:flex;align-items:center;gap:6px">
+        <i class="fas fa-user"></i> نبذة عن الممرض
+      </div>
+      <div style="font-size:14px;line-height:1.7;color:var(--text)">${nurse.bio}</div>
     </div>` : ''}
+
+    ${certUrls.length ? `
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;color:var(--text-muted);font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+        <i class="fas fa-certificate" style="color:var(--accent)"></i> الشهادات والاعتمادات
+        <span style="background:var(--accent);color:white;font-size:11px;padding:2px 8px;border-radius:100px">${certUrls.length}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px">
+        ${certUrls.map((url, i) => `
+          <div onclick="window.open('${url}','_blank')" style="cursor:pointer;border-radius:10px;overflow:hidden;border:2px solid var(--border);transition:all 0.2s;aspect-ratio:1" 
+               onmouseover="this.style.borderColor='var(--accent)';this.style.transform='scale(1.03)'"
+               onmouseout="this.style.borderColor='var(--border)';this.style.transform='scale(1)'">
+            <img src="${url}" style="width:100%;height:100%;object-fit:cover" title="شهادة ${i+1}">
+          </div>`).join('')}
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:8px;text-align:center">
+        <i class="fas fa-search-plus"></i> اضغط على أي صورة لعرضها بالكامل
+      </div>
+    </div>` : `
+    <div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:8px">
+      <i class="fas fa-certificate"></i> لم يرفع هذا الممرض صور شهادات بعد
+    </div>`}
+
     ${app.cover_note ? `
-    <div style="background:var(--bg);border-radius:var(--radius-sm);padding:16px;">
-      <div style="font-size:13px;font-weight:700;color:var(--text-muted);margin-bottom:8px">رسالة المتقدم</div>
+    <div style="background:var(--bg);border-radius:var(--radius-sm);padding:14px">
+      <div style="font-size:13px;font-weight:700;color:var(--text-muted);margin-bottom:6px;display:flex;align-items:center;gap:6px">
+        <i class="fas fa-comment-alt"></i> رسالة المتقدم
+      </div>
       <div style="font-size:14px;line-height:1.7">${app.cover_note}</div>
     </div>` : ''}`;
 
@@ -2394,8 +2695,50 @@ async function viewJobApplications(jobId, jobTitle) {
 async function updateAppStatus(appId, status) {
   await sb.from('applications').update({ status, updated_at: new Date() }).eq('id', appId);
   closeModal('appDetailModal');
+
+  // Check if job is now completed (accepted count >= nurses_needed)
+  const app = window._apps?.find(function(a) { return a.id === appId; });
+  if (app && status === 'accepted') {
+    await checkAndCompleteJob(app.job_id);
+  }
+
   loadHospitalApplications();
   loadHospitalStats();
+}
+
+async function checkAndCompleteJob(jobId) {
+  // Get job details
+  const { data: job } = await sb.from('job_postings')
+    .select('nurses_needed, is_completed, title')
+    .eq('id', jobId)
+    .single();
+
+  if (!job || job.is_completed) return;
+
+  // Count accepted applications
+  const { count } = await sb.from('applications')
+    .select('id', { count: 'exact', head: true })
+    .eq('job_id', jobId)
+    .eq('status', 'accepted');
+
+  var needed = job.nurses_needed || 1;
+  if (count >= needed) {
+    // Mark job as completed
+    await sb.from('job_postings').update({
+      is_completed: true,
+      is_active: false,
+      completed_at: new Date().toISOString()
+    }).eq('id', jobId);
+
+    // Show notification
+    var toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--accent);color:white;padding:12px 24px;border-radius:100px;font-weight:700;font-size:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,184,148,0.4);animation:fadeIn 0.3s ease';
+    toast.innerHTML = '<i class="fas fa-check-circle"></i> تم اكتمال وظيفة "' + job.title + '" وتم نقلها للوظائف المكتملة';
+    document.body.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 4000);
+
+    loadHospitalJobs();
+  }
 }
 
 // ========== ADD JOB ==========
@@ -2489,6 +2832,9 @@ function showProfileModal() {
   document.getElementById('editNurseExp').value = currentProfile.years_experience || '';
   document.getElementById('editNurseBio').value = currentProfile.bio || '';
   setEditSpecsFromArray(currentProfile.specializations || []);
+  editCertFiles = [];
+  document.getElementById('editCertPreviewGrid').innerHTML = '';
+  loadCertificates();
   clearAlert('profileModalAlert');
   openModal('profileModal');
 }
@@ -2497,34 +2843,71 @@ async function handleUpdateProfile(e) {
   if (e && e.preventDefault) e.preventDefault();
   clearAlert('profileModalAlert');
 
-  var updateData = {
-    full_name: document.getElementById('editNurseName').value,
-    phone: document.getElementById('editNursePhone').value,
-    city: document.getElementById('editNurseCity').value,
-    years_experience: parseInt(document.getElementById('editNurseExp').value) || 0,
-    bio: document.getElementById('editNurseBio').value,
-    specializations: getEditSelectedSpecs(),
-    updated_at: new Date().toISOString(),
-  };
-  console.log('Updating profile:', updateData, 'for user:', currentUser.id);
-
-  const { data, error } = await sb.from('nurses')
-    .update(updateData)
-    .eq('id', currentUser.id)
-    .select();
-
-  console.log('Update result:', data, 'error:', error);
-
-  if (error) {
-    showAlert('profileModalAlert', 'حصل خطأ: ' + error.message);
+  if (!currentUser) {
+    showAlert('profileModalAlert', 'يجب تسجيل الدخول أولاً');
     return;
   }
 
-  showAlert('profileModalAlert', '✅ تم الحفظ بنجاح', 'success');
-  await loadUserProfile();
-  document.getElementById('nurseWelcomeName').textContent = currentProfile?.full_name || 'ممرض';
-  document.getElementById('navUserName').textContent = currentProfile?.full_name || 'ممرض';
-  setTimeout(function() { closeModal('profileModal'); }, 800);
+  var saveBtn = document.querySelector('#profileModal .btn-primary');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block"></div> جاري الحفظ...'; }
+
+  try {
+    // Upload new cert images
+    var existingUrls = (currentProfile && currentProfile.certificates_urls) ? currentProfile.certificates_urls : [];
+    var newFiles = editCertFiles.filter(function(f) { return f !== null; });
+    var newUrls = [];
+
+    for (var i = 0; i < newFiles.length; i++) {
+      var file = newFiles[i];
+      var ext = file.name.split('.').pop();
+      var filePath = currentUser.id + '/' + Date.now() + '_' + i + '.' + ext;
+      var upResult = await sb.storage.from('certificates').upload(filePath, file, { upsert: true });
+      if (!upResult.error) {
+        var pubResult = sb.storage.from('certificates').getPublicUrl(filePath);
+        newUrls.push(pubResult.data.publicUrl);
+      } else {
+        console.warn('Upload error for file', file.name, upResult.error);
+      }
+    }
+
+    var allCertUrls = existingUrls.concat(newUrls);
+
+    var updateData = {
+      full_name: document.getElementById('editNurseName').value || '',
+      phone: document.getElementById('editNursePhone').value || '',
+      city: document.getElementById('editNurseCity').value || '',
+      years_experience: parseInt(document.getElementById('editNurseExp').value) || 0,
+      bio: document.getElementById('editNurseBio').value || '',
+      specializations: getEditSelectedSpecs(),
+      certificates_urls: allCertUrls,
+      updated_at: new Date().toISOString(),
+    };
+
+    console.log('Saving profile:', updateData);
+
+    var result = await sb.from('nurses').update(updateData).eq('id', currentUser.id).select();
+    console.log('Save result:', result);
+
+    if (result.error) {
+      showAlert('profileModalAlert', 'حصل خطأ: ' + result.error.message);
+      return;
+    }
+
+    editCertFiles = [];
+    document.getElementById('editCertPreviewGrid').innerHTML = '';
+    await loadUserProfile();
+    var newName = (currentProfile && currentProfile.full_name) ? currentProfile.full_name : 'ممرض';
+    document.getElementById('nurseWelcomeName').textContent = newName;
+    document.getElementById('navUserName').textContent = newName;
+    showAlert('profileModalAlert', '✅ تم الحفظ بنجاح', 'success');
+    setTimeout(function() { closeModal('profileModal'); }, 1000);
+
+  } catch(err) {
+    console.error('handleUpdateProfile error:', err);
+    showAlert('profileModalAlert', 'حصل خطأ غير متوقع: ' + err.message);
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save"></i> حفظ التغييرات'; }
+  }
 }
 
 // ========== MODALS ==========
