@@ -1002,6 +1002,79 @@
     white-space: nowrap;
   }
 
+  /* ===== CHAR COUNT ===== */
+  .char-count {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: left;
+    margin-top: 4px;
+    transition: color 0.2s;
+  }
+  .char-count.warn { color: #f59e0b; }
+  .char-count.danger { color: #ef4444; font-weight: 700; }
+
+  /* ===== AVATAR ===== */
+  .avatar-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent);
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .avatar-circle:hover { transform: scale(1.05); box-shadow: 0 0 0 3px var(--accent-light); }
+
+  .avatar-circle-lg {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(255,255,255,0.5);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .avatar-circle-lg:hover { opacity: 0.85; }
+
+  .avatar-placeholder {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 2px solid var(--accent);
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .avatar-placeholder:hover { transform: scale(1.05); box-shadow: 0 0 0 3px var(--accent-light); }
+
+  .avatar-upload-wrap {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+  }
+  .avatar-upload-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .avatar-upload-wrap:hover .avatar-upload-overlay { opacity: 1; }
+
   /* ===== CERT UPLOAD ===== */
   .cert-upload-area {
     border: 2px dashed var(--accent);
@@ -1071,6 +1144,7 @@
     </div>
     <div id="navUser" class="hidden" style="display:none;align-items:center;gap:12px">
       <span id="navUserName" style="font-weight:700;color:var(--primary);font-size:14px"></span>
+      <div id="navAvatarWrap" onclick="currentRole==='nurse'?showProfileModal():showFacilityProfileModal()" title="الملف الشخصي" style="cursor:pointer"></div>
       <button class="btn btn-danger btn-sm" onclick="logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
     </div>
   </div>
@@ -1081,14 +1155,14 @@
   <div class="hero">
     <div class="hero-content">
       <div class="hero-badge"><i class="fas fa-heartbeat"></i> منصة التمريض الأولى في مصر</div>
-      <h1>وصّل <span class="highlight">ممرضيك</span><br>بأفضل الفرص</h1>
-      <p>Shift تربط طاقم التمريض المحترف بالمستشفيات التي تحتاجهم. سجّل بروفايلك أو انزل وظيفتك وابدأ في ثوانٍ.</p>
+      <h1>اعثر على الفرصة <span class="highlight">المثالية</span><br>في المجال الطبي</h1>
+      <p>Shift تربط طاقم التمريض المحترف بالمنشآت الطبية التي تحتاجهم. سجّل بروفايلك أو انزل وظيفتك وابدأ في ثوانٍ.</p>
       <div class="hero-btns">
         <button class="hero-btn-nurse" onclick="showAuthPage('register', 'nurse')">
           <i class="fas fa-user-nurse"></i> أنا ممرض - سجّل بروفايلك
         </button>
         <button class="hero-btn-hospital" onclick="showAuthPage('register', 'hospital')">
-          <i class="fas fa-hospital"></i> أنا مستشفى - انزّل وظيفة
+          <i class="fas fa-hospital"></i> أنا منشأة طبية - وصّل ممرضيك
         </button>
       </div>
     </div>
@@ -1101,7 +1175,7 @@
     </div>
     <div class="stat-item">
       <div class="stat-num">٨٠+</div>
-      <div class="stat-label">مستشفى</div>
+      <div class="stat-label">منشأة طبية</div>
     </div>
     <div class="stat-item">
       <div class="stat-num">٤٥٠+</div>
@@ -1122,7 +1196,7 @@
       <div class="feature-card">
         <div class="feature-icon icon-green"><i class="fas fa-file-medical-alt"></i></div>
         <h3>بروفايل احترافي</h3>
-        <p>أنشئ بروفايلك بكل بياناتك وخبراتك وشهاداتك وخليه يوصل للمستشفيات المناسبة ليك.</p>
+        <p>أنشئ بروفايلك بكل بياناتك وخبراتك وشهاداتك وخليه يوصل للمنشآت الطبية المناسبة ليك.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon icon-blue"><i class="fas fa-briefcase-medical"></i></div>
@@ -1131,7 +1205,7 @@
       </div>
       <div class="feature-card">
         <div class="feature-icon icon-orange"><i class="fas fa-hospital-user"></i></div>
-        <h3>للمستشفيات</h3>
+        <h3>للمنشأة الطبية</h3>
         <p>انزّل طلب التوظيف مع تفاصيل الراتب والمزايا واستلم الطلبات من الممرضين المؤهلين.</p>
       </div>
     </div>
@@ -1156,7 +1230,7 @@
           <i class="fas fa-user-nurse"></i> ممرض
         </button>
         <button class="role-tab" onclick="setRole('hospital')" id="tab-hospital">
-          <i class="fas fa-hospital"></i> مستشفى
+          <i class="fas fa-hospital"></i> منشأة طبية
         </button>
       </div>
 
@@ -1164,10 +1238,30 @@
       <form id="registerForm" onsubmit="handleRegister(event)">
         <!-- Nurse Fields -->
         <div id="nurseFields">
+          <!-- Avatar Upload -->
+          <div class="form-group" style="display:flex;align-items:center;gap:16px;background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin-bottom:8px">
+            <div class="avatar-upload-wrap" onclick="document.getElementById('regNurseAvatarInput').click()" style="flex-shrink:0">
+              <div id="regNurseAvatarPreview">
+                <div style="width:72px;height:72px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:white;font-size:28px;border:3px solid var(--accent)">
+                  <i class="fas fa-user-nurse"></i>
+                </div>
+              </div>
+              <div class="avatar-upload-overlay"><i class="fas fa-camera"></i></div>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:14px;margin-bottom:3px">صورة شخصية</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">تظهر للمنشآت عند مراجعة طلبك</div>
+              <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('regNurseAvatarInput').click()">
+                <i class="fas fa-camera"></i> اختر صورة
+              </button>
+            </div>
+            <input type="file" id="regNurseAvatarInput" accept="image/*" class="hidden" onchange="handleRegAvatarPreview(event,'regNurseAvatarPreview','regNurseAvatarFile')">
+          </div>
           <div class="form-row">
             <div class="form-group">
               <label>الاسم الكامل *</label>
-              <input type="text" id="nurseName" placeholder="محمد أحمد">
+              <input type="text" id="nurseName" placeholder="محمد أحمد" maxlength="30" oninput="updateCharCount(this,'nurseNameCount',30)">
+              <div class="char-count" id="nurseNameCount">٠ / ٣٠</div>
             </div>
             <div class="form-group">
               <label>رقم الهاتف</label>
@@ -1219,6 +1313,10 @@
             <input type="hidden" id="specData">
           </div>
           <div class="form-group">
+            <label>نبذة عنك</label>
+            <textarea id="nurseBio" placeholder="اكتب نبذة مختصرة عن تجربتك وأهدافك المهنية..."></textarea>
+          </div>
+          <div class="form-group">
             <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
               <span style="background:var(--accent);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px">
                 <i class="fas fa-certificate"></i>
@@ -1228,7 +1326,7 @@
             </label>
             <div style="background:var(--accent-light);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--accent);display:flex;align-items:flex-start;gap:8px">
               <i class="fas fa-info-circle" style="margin-top:2px;flex-shrink:0"></i>
-              <span>شهاداتك مثل BLS وACLS بتزيد فرصك بشكل كبير — المستشفى بيشوفها أثناء مراجعة طلبك</span>
+              <span>شهاداتك مثل BLS وACLS بتزيد فرصك بشكل كبير — المنشأة بتشوفها أثناء مراجعة طلبك</span>
             </div>
             <div class="cert-upload-area" id="certUploadArea" onclick="document.getElementById('certImagesInput').click()">
               <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
@@ -1245,17 +1343,49 @@
             <input type="file" id="certImagesInput" multiple accept="image/*" class="hidden" onchange="handleCertImages(event)">
             <div id="certPreviewGrid" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px"></div>
           </div>
-          <div class="form-group">
-            <label>نبذة عنك</label>
-            <textarea id="nurseBio" placeholder="اكتب نبذة مختصرة عن تجربتك وأهدافك المهنية..."></textarea>
-          </div>
         </div>
 
         <!-- Hospital Fields -->
         <div id="hospitalFields" class="hidden">
-          <div class="form-group">
-            <label>اسم المستشفى *</label>
-            <input type="text" id="hospitalName" placeholder="مستشفى...">
+          <!-- Avatar Upload -->
+          <div class="form-group" style="display:flex;align-items:center;gap:16px;background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin-bottom:8px">
+            <div class="avatar-upload-wrap" onclick="document.getElementById('regHospAvatarInput').click()" style="flex-shrink:0">
+              <div id="regHospAvatarPreview">
+                <div style="width:72px;height:72px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:white;font-size:28px;border:3px solid var(--accent)">
+                  <i class="fas fa-hospital"></i>
+                </div>
+              </div>
+              <div class="avatar-upload-overlay"><i class="fas fa-camera"></i></div>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:14px;margin-bottom:3px">شعار / صورة المنشأة</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">تظهر في بطاقات الوظائف للممرضين</div>
+              <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('regHospAvatarInput').click()">
+                <i class="fas fa-camera"></i> اختر صورة
+              </button>
+            </div>
+            <input type="file" id="regHospAvatarInput" accept="image/*" class="hidden" onchange="handleRegAvatarPreview(event,'regHospAvatarPreview','regHospAvatarFile')">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>نوع المنشأة *</label>
+              <select id="facilityType">
+                <option value="">اختر النوع</option>
+                <option value="مستشفى">🏥 مستشفى</option>
+                <option value="عيادة">🏨 عيادة</option>
+                <option value="مركز طبي">🏢 مركز طبي</option>
+                <option value="صيدلية">💊 صيدلية</option>
+                <option value="مختبر">🔬 مختبر تحاليل</option>
+                <option value="مركز أشعة">📡 مركز أشعة</option>
+                <option value="دار رعاية">🏠 دار رعاية</option>
+                <option value="وحدة صحية">🩺 وحدة صحية</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>اسم المنشأة الطبية *</label>
+              <input type="text" id="hospitalName" placeholder="اسم المنشأة..." maxlength="40" oninput="updateCharCount(this,'hospNameCount',40)">
+              <div class="char-count" id="hospNameCount">٠ / ٤٠</div>
+            </div>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -1281,8 +1411,8 @@
             <input type="text" id="hospitalAddress" placeholder="الشارع، المنطقة">
           </div>
           <div class="form-group">
-            <label>نبذة عن المستشفى</label>
-            <textarea id="hospitalDesc" placeholder="اكتب نبذة عن المستشفى وتخصصاته..."></textarea>
+            <label>نبذة عن المنشأة الطبية</label>
+            <textarea id="hospitalDesc" placeholder="اكتب نبذة عن المنشأة الطبية..."></textarea>
           </div>
         </div>
 
@@ -1441,9 +1571,12 @@
     <div class="dashboard-header">
       <div class="dashboard-greeting">
         <h2>مرحباً، <span id="hospitalWelcomeName">-</span> 🏥</h2>
-        <p>أدر وظائفك واستعرض الطلبات الواردة</p>
+        <p>أدر وظائف منشأتك واستعرض الطلبات الواردة</p>
       </div>
       <div class="flex gap-3">
+        <button class="btn btn-outline btn-sm" onclick="showFacilityProfileModal()">
+          <i class="fas fa-hospital-user"></i> ملف المنشأة
+        </button>
         <button class="btn btn-primary btn-sm" onclick="openJobModal()">
           <i class="fas fa-plus"></i> إضافة وظيفة
         </button>
@@ -1525,7 +1658,8 @@
       <form id="jobForm" onsubmit="handleAddJob(event)">
         <div class="form-group">
           <label>عنوان الوظيفة *</label>
-          <input type="text" id="jobTitle" placeholder="مثال: ممرض طوارئ">
+          <input type="text" id="jobTitle" placeholder="مثال: ممرض طوارئ" maxlength="50" oninput="updateCharCount(this,'jobTitleCount',50)">
+            <div class="char-count" id="jobTitleCount">٠ / ٥٠</div>
         </div>
         <div class="form-group">
           <label>وصف الوظيفة *</label>
@@ -1544,12 +1678,11 @@
           </div>
           <div class="form-group">
             <label>المدينة</label>
-            <select id="jobCity">
-              <option value="">اختر المدينة</option>
-              <option>القاهرة</option><option>الجيزة</option><option>الإسكندرية</option>
-              <option>المنيا</option><option>أسيوط</option><option>سوهاج</option>
-              <option>قنا</option><option>الأقصر</option><option>أسوان</option>
-            </select>
+            <div style="display:flex;align-items:center;gap:8px;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-size:14px;color:var(--text-muted)">
+              <i class="fas fa-map-marker-alt" style="color:var(--accent)"></i>
+              <span id="jobCityDisplay">-</span>
+            </div>
+            <input type="hidden" id="jobCity">
           </div>
         </div>
         <div class="form-row">
@@ -1632,10 +1765,26 @@
     <div class="modal-body">
       <div id="profileModalAlert"></div>
       <form id="profileForm" onsubmit="handleUpdateProfile(event)">
+        <!-- Avatar Upload -->
+        <div class="form-group" style="display:flex;align-items:center;gap:20px;background:var(--bg);border-radius:var(--radius-sm);padding:16px;margin-bottom:20px">
+          <div class="avatar-upload-wrap" onclick="document.getElementById('avatarInput').click()">
+            <div id="profileAvatarPreview"></div>
+            <div class="avatar-upload-overlay"><i class="fas fa-camera"></i></div>
+          </div>
+          <div>
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px">صورة الملف الشخصي</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">JPG أو PNG • حجم أقصى 2MB</div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('avatarInput').click()">
+              <i class="fas fa-camera"></i> تغيير الصورة
+            </button>
+          </div>
+          <input type="file" id="avatarInput" accept="image/*" class="hidden" onchange="handleAvatarPreview(event)">
+        </div>
         <div class="form-row">
           <div class="form-group">
             <label>الاسم الكامل</label>
-            <input type="text" id="editNurseName">
+            <input type="text" id="editNurseName" maxlength="30" oninput="updateCharCount(this,'editNurseNameCount',30)">
+              <div class="char-count" id="editNurseNameCount">٠ / ٣٠</div>
           </div>
           <div class="form-group">
             <label>رقم الهاتف</label>
@@ -1705,6 +1854,85 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('profileModal')">إلغاء</button>
       <button class="btn btn-primary" onclick="handleUpdateProfile(event)">
+        <i class="fas fa-save"></i> حفظ التغييرات
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Facility Profile Modal -->
+<div class="modal-overlay" id="facilityProfileModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3><i class="fas fa-hospital"></i> <span id="facilityModalTitle">ملف المنشأة</span></h3>
+      <button class="modal-close" onclick="closeModal('facilityProfileModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="facilityModalAlert"></div>
+
+      <!-- Avatar + name section -->
+      <div style="background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:var(--radius);padding:28px 20px;text-align:center;margin-bottom:20px;color:white">
+        <div class="avatar-upload-wrap" style="margin:0 auto 12px;display:inline-block" onclick="document.getElementById('facilityAvatarInput').click()">
+          <div id="facilityAvatarPreview" style="margin:0 auto"></div>
+          <div class="avatar-upload-overlay"><i class="fas fa-camera"></i></div>
+        </div>
+        <input type="file" id="facilityAvatarInput" accept="image/*" class="hidden" onchange="handleFacilityAvatarPreview(event)">
+        <div id="facilityNameDisplay" style="font-family:Tajawal;font-size:20px;font-weight:800;margin-bottom:4px"></div>
+        <div id="facilityTypeDisplay" style="font-size:13px;opacity:0.85"></div>
+      </div>
+
+      <form id="facilityProfileForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label>اسم المنشأة *</label>
+            <input type="text" id="editFacilityName" maxlength="40" oninput="updateCharCount(this,'editFacilityNameCount',40)">
+            <div class="char-count" id="editFacilityNameCount">٠ / ٤٠</div>
+          </div>
+          <div class="form-group">
+            <label>نوع المنشأة</label>
+            <select id="editFacilityType">
+              <option value="مستشفى">🏥 مستشفى</option>
+              <option value="عيادة">🏨 عيادة</option>
+              <option value="مركز طبي">🏢 مركز طبي</option>
+              <option value="صيدلية">💊 صيدلية</option>
+              <option value="مختبر">🔬 مختبر تحاليل</option>
+              <option value="مركز أشعة">📡 مركز أشعة</option>
+              <option value="دار رعاية">🏠 دار رعاية</option>
+              <option value="وحدة صحية">🩺 وحدة صحية</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>رقم الهاتف</label>
+            <input type="tel" id="editFacilityPhone">
+          </div>
+          <div class="form-group">
+            <label>المحافظة</label>
+            <select id="editFacilityCity">
+              <option value="">اختر</option>
+              <option>القاهرة</option><option>الجيزة</option><option>الإسكندرية</option>
+              <option>المنيا</option><option>أسيوط</option><option>سوهاج</option>
+              <option>قنا</option><option>الأقصر</option><option>أسوان</option>
+              <option>البحيرة</option><option>الشرقية</option><option>الدقهلية</option>
+              <option>المنوفية</option><option>الغربية</option><option>كفر الشيخ</option>
+              <option>دمياط</option><option>بورسعيد</option><option>الإسماعيلية</option><option>السويس</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>العنوان التفصيلي</label>
+          <input type="text" id="editFacilityAddress" placeholder="الشارع، المنطقة...">
+        </div>
+        <div class="form-group">
+          <label>نبذة عن المنشأة</label>
+          <textarea id="editFacilityDesc" style="min-height:90px"></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('facilityProfileModal')">إلغاء</button>
+      <button class="btn btn-primary" onclick="handleUpdateFacilityProfile()">
         <i class="fas fa-save"></i> حفظ التغييرات
       </button>
     </div>
@@ -1945,6 +2173,139 @@ function handleEditCertImages(event) {
   event.target.value = '';
 }
 
+// ========== CHAR COUNT ==========
+function updateCharCount(input, counterId, max) {
+  var el = document.getElementById(counterId);
+  if (!el) return;
+  var len = input.value.length;
+  el.textContent = len + ' / ' + max;
+  el.className = 'char-count';
+  if (len >= max) el.classList.add('danger');
+  else if (len >= max * 0.8) el.classList.add('warn');
+}
+
+// ========== AVATAR ==========
+var newAvatarFile = null;
+var regNurseAvatarFile = null;
+var regHospAvatarFile = null;
+
+// Generic handler for registration avatar preview
+function handleRegAvatarPreview(event, previewId, fileVar) {
+  var file = event.target.files[0];
+  if (!file) return;
+  // Store in the right variable
+  if (fileVar === 'regNurseAvatarFile') regNurseAvatarFile = file;
+  else if (fileVar === 'regHospAvatarFile') regHospAvatarFile = file;
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      canvas.width = 200; canvas.height = 200;
+      var ctx = canvas.getContext('2d');
+      var s = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width-s)/2, (img.height-s)/2, s, s, 0, 0, 200, 200);
+      var url = canvas.toDataURL('image/jpeg', 0.92);
+      var el = document.getElementById(previewId);
+      if (el) el.innerHTML = '<img src="' + url + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);display:block">';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function handleAvatarPreview(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  newAvatarFile = file;
+  // Show preview using canvas resize for accurate preview
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      canvas.width = 200;
+      canvas.height = 200;
+      var ctx = canvas.getContext('2d');
+      var srcSize = Math.min(img.width, img.height);
+      var srcX = (img.width - srcSize) / 2;
+      var srcY = (img.height - srcSize) / 2;
+      ctx.drawImage(img, srcX, srcY, srcSize, srcSize, 0, 0, 200, 200);
+      renderAvatarPreview('profileAvatarPreview', canvas.toDataURL('image/jpeg', 0.92), 80);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function renderAvatarPreview(containerId, url, size) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  if (url) {
+    var img = document.createElement('img');
+    img.src = url;
+    img.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);display:block';
+    el.appendChild(img);
+  } else {
+    var initials = (currentProfile && (currentProfile.full_name || currentProfile.hospital_name))
+      ? (currentProfile.full_name || currentProfile.hospital_name).substring(0, 1)
+      : '؟';
+    el.innerHTML = '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:white;font-size:' + (size/2.5) + 'px;font-weight:700;border:3px solid var(--accent)">' + initials + '</div>';
+  }
+}
+
+function renderNavAvatar(url, name) {
+  var wrap = document.getElementById('navAvatarWrap');
+  if (!wrap) return;
+  if (url) {
+    wrap.innerHTML = '<img src="' + url + '" class="avatar-circle" title="' + (name||'') + '">';
+  } else {
+    var initial = name ? name.substring(0, 1) : '؟';
+    wrap.innerHTML = '<div class="avatar-placeholder">' + initial + '</div>';
+  }
+}
+
+// Resize image using Canvas before upload for crisp quality
+function resizeImageToBlob(file, size) {
+  return new Promise(function(resolve) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        var ctx = canvas.getContext('2d');
+
+        // Crop to square from center
+        var srcSize = Math.min(img.width, img.height);
+        var srcX = (img.width - srcSize) / 2;
+        var srcY = (img.height - srcSize) / 2;
+
+        ctx.drawImage(img, srcX, srcY, srcSize, srcSize, 0, 0, size, size);
+        canvas.toBlob(function(blob) { resolve(blob); }, 'image/jpeg', 0.92);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadAvatar(userId) {
+  if (!newAvatarFile) return null;
+  // Resize to 400x400 for crisp display at any size
+  var blob = await resizeImageToBlob(newAvatarFile, 400);
+  var path = userId + '/avatar.jpg';
+  var result = await sb.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+  if (result.error) { console.error('Avatar upload error:', result.error); return null; }
+  var pub = sb.storage.from('avatars').getPublicUrl(path);
+  return pub.data.publicUrl + '?t=' + Date.now();
+}
+
 // ========== SUPABASE INIT ==========
 const SUPABASE_URL = 'https://otagjeommzhawgllsexa.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90YWdqZW9tbXpoYXdnbGxzZXhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzNjU1MjMsImV4cCI6MjA4Nzk0MTUyM30.X0ahXjFSt0BwxZA_q-ix-9343XepRLt7FZUHKGfXx9I';
@@ -2092,6 +2453,7 @@ async function handleRegister(e) {
   if (selectedRole === 'nurse') {
     pendingData = {
       role: 'nurse', email,
+      avatarFile: regNurseAvatarFile || null,
       full_name: document.getElementById('nurseName').value || email.split('@')[0],
       phone: document.getElementById('nursePhone').value,
       city: document.getElementById('nurseCity').value,
@@ -2102,14 +2464,15 @@ async function handleRegister(e) {
   } else {
     pendingData = {
       role: 'hospital', email,
+      avatarFile: regHospAvatarFile || null,
       hospital_name: document.getElementById('hospitalName').value || email.split('@')[0],
+      facility_type: document.getElementById('facilityType').value || 'مستشفى',
       phone: document.getElementById('hospitalPhone').value,
       city: document.getElementById('hospitalCity').value,
       address: document.getElementById('hospitalAddress').value,
       description: document.getElementById('hospitalDesc').value,
     };
   }
-  localStorage.setItem('shift_pending_reg', JSON.stringify(pendingData));
 
   try {
     const { data, error } = await sb.auth.signUp({ email, password: pass });
@@ -2118,13 +2481,28 @@ async function handleRegister(e) {
     const userId = data.user.id;
     console.log('SignUp success, userId:', userId, 'session:', data.session ? 'YES' : 'NO (email confirmation required)');
 
+    // Upload avatar immediately after signup (while we have the file)
+    var avatarFile = pendingData.role === 'nurse' ? regNurseAvatarFile : regHospAvatarFile;
+    if (avatarFile) {
+      try {
+        var blob = await resizeImageToBlob(avatarFile, 400);
+        var path = userId + '/avatar.jpg';
+        var upResult = await sb.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+        if (!upResult.error) {
+          var pub = sb.storage.from('avatars').getPublicUrl(path);
+          pendingData.avatar_url = pub.data.publicUrl + '?t=' + Date.now();
+        }
+      } catch(avErr) { console.warn('Avatar upload failed:', avErr); }
+    }
+    delete pendingData.avatarFile; // can't serialize File to localStorage
+    localStorage.setItem('shift_pending_reg', JSON.stringify(pendingData));
+
     // Try to save profile via RPC (SECURITY DEFINER bypasses RLS)
     try {
       await completePendingRegistration(userId, pendingData);
       localStorage.removeItem('shift_pending_reg');
       console.log('Profile saved successfully');
     } catch(rpcErr) {
-      // RPC failed - keep data in localStorage for after email confirmation
       console.warn('RPC failed, keeping data in localStorage:', rpcErr.message);
     }
 
@@ -2205,21 +2583,22 @@ async function loadUserProfile() {
 }
 
 function goToDashboard() {
-  // Update navbar
   document.getElementById('navGuest').style.display = 'none';
   var navUser = document.getElementById('navUser');
   navUser.style.display = 'flex';
   if (currentRole === 'nurse') {
-    var name = currentProfile?.full_name || 'ممرض';
+    var name = (currentProfile && currentProfile.full_name) ? currentProfile.full_name : 'ممرض';
     document.getElementById('navUserName').textContent = name;
     document.getElementById('nurseWelcomeName').textContent = name;
+    renderNavAvatar(currentProfile && currentProfile.avatar_url, name);
     showPage('nurse');
     loadNurseStats();
     loadJobs();
   } else if (currentRole === 'hospital') {
-    var hname = currentProfile?.hospital_name || 'مستشفى';
+    var hname = (currentProfile && currentProfile.hospital_name) ? currentProfile.hospital_name : 'منشأة';
     document.getElementById('navUserName').textContent = hname;
     document.getElementById('hospitalWelcomeName').textContent = hname;
+    renderNavAvatar(currentProfile && currentProfile.avatar_url, hname);
     showPage('hospital');
     loadHospitalStats();
     loadHospitalJobs();
@@ -2245,7 +2624,7 @@ async function loadJobs() {
   const spec = document.getElementById('filterSpec').value;
 
   let query = sb.from('job_postings')
-    .select(`*, hospitals(hospital_name, city, logo_url)`)
+    .select(`*, hospitals(hospital_name, city, logo_url, avatar_url, facility_type)`)
     .eq('is_active', true)
     .order('created_at', { ascending: false });
 
@@ -2282,15 +2661,21 @@ function renderJobCard(job, appliedIds) {
   const hospital = job.hospitals;
   const initials = hospital?.hospital_name?.substring(0, 2) || '🏥';
   const benefits = job.benefits || [];
+  const facilityAvatarHtml = (hospital && hospital.avatar_url)
+    ? `<img src="${hospital.avatar_url}" style="width:46px;height:46px;border-radius:12px;object-fit:cover;border:2px solid var(--border);flex-shrink:0">`
+    : `<div class="hospital-avatar">${initials}</div>`;
 
   return `
     <div class="job-card">
       <div class="job-card-header">
         <div class="hospital-info">
-          <div class="hospital-avatar">${initials}</div>
+          ${facilityAvatarHtml}
           <div>
-            <div class="hospital-name">${hospital?.hospital_name || 'مستشفى'}</div>
-            <div class="hospital-city"><i class="fas fa-map-marker-alt"></i> ${job.city || hospital?.city || '-'}</div>
+            <div class="hospital-name">${hospital?.hospital_name || 'منشأة طبية'}</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              ${hospital?.facility_type ? `<span style="font-size:11px;background:var(--accent-light);color:var(--primary);padding:2px 8px;border-radius:20px;font-weight:700">${hospital.facility_type}</span>` : ''}
+              <div class="hospital-city"><i class="fas fa-map-marker-alt"></i> ${job.city || hospital?.city || '-'}</div>
+            </div>
           </div>
         </div>
         ${job.shift_type ? `<div class="job-badge">${job.shift_type}</div>` : ''}
@@ -2331,7 +2716,7 @@ async function loadMyApplications() {
   document.getElementById('myApplicationsList').innerHTML = '<div class="loading"><div class="spinner"></div> جاري التحميل...</div>';
 
   const { data: apps, error } = await sb.from('applications')
-    .select(`*, job_postings(title, city, shift_type, hospitals(hospital_name))`)
+    .select(`*, job_postings(title, city, shift_type, hospitals(hospital_name, avatar_url, facility_type))`)
     .eq('nurse_id', currentUser.id)
     .order('created_at', { ascending: false });
 
@@ -2350,11 +2735,14 @@ async function loadMyApplications() {
 
   document.getElementById('myApplicationsList').innerHTML = apps.map(app => `
     <div class="application-item">
-      <div class="nurse-avatar">🏥</div>
+      ${(app.job_postings?.hospitals?.avatar_url)
+        ? `<img src="${app.job_postings.hospitals.avatar_url}" style="width:46px;height:46px;border-radius:12px;object-fit:cover;border:2px solid var(--border);flex-shrink:0">`
+        : `<div class="nurse-avatar">🏥</div>`}
       <div class="application-info">
         <div class="application-name">${app.job_postings?.title || 'وظيفة'}</div>
-        <div class="application-meta">
-          ${app.job_postings?.hospitals?.hospital_name || ''} 
+        <div class="application-meta" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          ${app.job_postings?.hospitals?.facility_type ? `<span style="font-size:11px;background:var(--accent-light);color:var(--primary);padding:1px 7px;border-radius:20px;font-weight:700">${app.job_postings.hospitals.facility_type}</span>` : ''}
+          ${app.job_postings?.hospitals?.hospital_name || ''}
           ${app.job_postings?.city ? '• ' + app.job_postings.city : ''}
           ${app.job_postings?.shift_type ? '• ' + app.job_postings.shift_type : ''}
         </div>
@@ -2433,7 +2821,7 @@ async function loadCompletedJobs() {
   document.getElementById('hospitalCompletedList').innerHTML = '<div class="loading"><div class="spinner"></div> جاري التحميل...</div>';
 
   const { data: jobs } = await sb.from('job_postings')
-    .select('*, applications(id, status, nurses(full_name, city))')
+    .select('*, applications(id, status, nurses(full_name, city, avatar_url))')
     .eq('hospital_id', currentUser.id)
     .eq('is_completed', true)
     .order('completed_at', { ascending: false });
@@ -2476,8 +2864,11 @@ async function loadCompletedJobs() {
           <div style="display:flex;flex-direction:column;gap:6px">
             ${acceptedNurses.map(function(a) {
               var n = a.nurses;
+              var nurseAvHtml = (n && n.avatar_url)
+                ? `<img src="${n.avatar_url}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid var(--border);flex-shrink:0">`
+                : `<div class="nurse-avatar" style="width:28px;height:28px;font-size:12px">${n?.full_name?.substring(0,1) || '؟'}</div>`;
               return `<div style="display:flex;align-items:center;gap:8px;font-size:13px">
-                <div class="nurse-avatar" style="width:28px;height:28px;font-size:12px">${n?.full_name?.substring(0,1) || '؟'}</div>
+                ${nurseAvHtml}
                 <span style="font-weight:600">${n?.full_name || 'ممرض'}</span>
                 ${n?.city ? `<span style="color:var(--text-muted)">• ${n.city}</span>` : ''}
               </div>`;
@@ -2529,7 +2920,7 @@ async function loadHospitalApplications() {
 
   const jobIds = jobs.map(j => j.id);
   const { data: apps } = await sb.from('applications')
-    .select(`*, nurses(full_name, city, years_experience, specializations, bio, phone, certificates_urls)`)
+    .select(`*, nurses(full_name, city, years_experience, specializations, bio, phone, certificates_urls, avatar_url)`)
     .in('job_id', jobIds)
     .order('created_at', { ascending: false });
 
@@ -2578,7 +2969,9 @@ async function loadHospitalApplications() {
               var nurse = app.nurses;
               return `
                 <div class="application-item" onclick="viewApplicant('${app.id}')" style="cursor:pointer;border-radius:0;border-bottom:1px solid var(--border)">
-                  <div class="nurse-avatar">${nurse?.full_name?.substring(0,1) || '؟'}</div>
+                  ${nurse && nurse.avatar_url
+                    ? `<img src="${nurse.avatar_url}" style="width:46px;height:46px;border-radius:12px;object-fit:cover;border:2px solid var(--border);flex-shrink:0">`
+                    : `<div class="nurse-avatar">${nurse?.full_name?.substring(0,1) || '؟'}</div>`}
                   <div class="application-info">
                     <div class="application-name">${nurse?.full_name || 'ممرض'}</div>
                     <div class="application-meta">
@@ -2613,9 +3006,13 @@ function viewApplicant(appId) {
   const certUrls = (nurse && nurse.certificates_urls && nurse.certificates_urls.length)
     ? nurse.certificates_urls : [];
 
+  const avatarHtml = (nurse && nurse.avatar_url)
+    ? `<img src="${nurse.avatar_url}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,0.5);margin:0 auto 16px;display:block">`
+    : `<div class="profile-avatar-large">${nurse?.full_name?.substring(0,1) || '؟'}</div>`;
+
   document.getElementById('appDetailBody').innerHTML = `
     <div class="profile-hero" style="border-radius:var(--radius);margin-bottom:20px">
-      <div class="profile-avatar-large">${nurse?.full_name?.substring(0,1) || '؟'}</div>
+      ${avatarHtml}
       <div class="profile-name">${nurse?.full_name || 'ممرض'}</div>
       <div class="profile-meta">
         ${nurse?.city ? `<span><i class="fas fa-map-marker-alt"></i> ${nurse.city}</span>` : ''}
@@ -2747,6 +3144,10 @@ function openJobModal() {
   renderTags('benefits');
   document.getElementById('jobForm').reset();
   clearAlert('jobModalAlert');
+  // Auto-fill city from facility profile
+  var city = (currentProfile && currentProfile.city) ? currentProfile.city : '';
+  document.getElementById('jobCity').value = city;
+  document.getElementById('jobCityDisplay').textContent = city || 'غير محدد';
   openModal('jobModal');
 }
 
@@ -2827,14 +3228,18 @@ async function handleApply() {
 function showProfileModal() {
   if (!currentProfile) return;
   document.getElementById('editNurseName').value = currentProfile.full_name || '';
+  updateCharCount(document.getElementById('editNurseName'), 'editNurseNameCount', 30);
   document.getElementById('editNursePhone').value = currentProfile.phone || '';
   document.getElementById('editNurseCity').value = currentProfile.city || '';
   document.getElementById('editNurseExp').value = currentProfile.years_experience || '';
   document.getElementById('editNurseBio').value = currentProfile.bio || '';
   setEditSpecsFromArray(currentProfile.specializations || []);
   editCertFiles = [];
+  newAvatarFile = null;
   document.getElementById('editCertPreviewGrid').innerHTML = '';
   loadCertificates();
+  // Load avatar preview
+  renderAvatarPreview('profileAvatarPreview', currentProfile.avatar_url || null, 80);
   clearAlert('profileModalAlert');
   openModal('profileModal');
 }
@@ -2872,6 +3277,13 @@ async function handleUpdateProfile(e) {
 
     var allCertUrls = existingUrls.concat(newUrls);
 
+    // Upload avatar if changed
+    var avatarUrl = (currentProfile && currentProfile.avatar_url) ? currentProfile.avatar_url : null;
+    if (newAvatarFile) {
+      var uploadedUrl = await uploadAvatar(currentUser.id);
+      if (uploadedUrl) avatarUrl = uploadedUrl;
+    }
+
     var updateData = {
       full_name: document.getElementById('editNurseName').value || '',
       phone: document.getElementById('editNursePhone').value || '',
@@ -2880,6 +3292,7 @@ async function handleUpdateProfile(e) {
       bio: document.getElementById('editNurseBio').value || '',
       specializations: getEditSelectedSpecs(),
       certificates_urls: allCertUrls,
+      avatar_url: avatarUrl,
       updated_at: new Date().toISOString(),
     };
 
@@ -2894,17 +3307,146 @@ async function handleUpdateProfile(e) {
     }
 
     editCertFiles = [];
+    newAvatarFile = null;
     document.getElementById('editCertPreviewGrid').innerHTML = '';
     await loadUserProfile();
     var newName = (currentProfile && currentProfile.full_name) ? currentProfile.full_name : 'ممرض';
     document.getElementById('nurseWelcomeName').textContent = newName;
     document.getElementById('navUserName').textContent = newName;
+    renderNavAvatar(currentProfile && currentProfile.avatar_url, newName);
     showAlert('profileModalAlert', '✅ تم الحفظ بنجاح', 'success');
     setTimeout(function() { closeModal('profileModal'); }, 1000);
 
   } catch(err) {
     console.error('handleUpdateProfile error:', err);
     showAlert('profileModalAlert', 'حصل خطأ غير متوقع: ' + err.message);
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save"></i> حفظ التغييرات'; }
+  }
+}
+
+// ========== FACILITY PROFILE ==========
+var newFacilityAvatarFile = null;
+
+function handleFacilityAvatarPreview(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  newFacilityAvatarFile = file;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      canvas.width = 200; canvas.height = 200;
+      var ctx = canvas.getContext('2d');
+      var srcSize = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width-srcSize)/2, (img.height-srcSize)/2, srcSize, srcSize, 0, 0, 200, 200);
+      var previewUrl = canvas.toDataURL('image/jpeg', 0.92);
+      renderFacilityAvatar(previewUrl);
+      // Update header preview
+      var nameEl = document.getElementById('facilityNameDisplay');
+      if (nameEl) {
+        var img2 = document.createElement('img');
+        img2.src = previewUrl;
+        img2.style.cssText = 'width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,0.5)';
+        document.getElementById('facilityAvatarPreview').innerHTML = '';
+        document.getElementById('facilityAvatarPreview').appendChild(img2);
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function renderFacilityAvatar(url) {
+  var el = document.getElementById('facilityAvatarPreview');
+  if (!el) return;
+  el.innerHTML = '';
+  if (url) {
+    var img = document.createElement('img');
+    img.src = url;
+    img.style.cssText = 'width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,0.5);display:block';
+    el.appendChild(img);
+  } else {
+    var name = (currentProfile && currentProfile.hospital_name) ? currentProfile.hospital_name : '؟';
+    el.innerHTML = '<div style="width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;color:white;font-size:32px;font-weight:700;border:3px solid rgba(255,255,255,0.4)">' + name.substring(0,1) + '</div>';
+  }
+}
+
+function showFacilityProfileModal() {
+  if (!currentProfile || currentRole !== 'hospital') return;
+  var name = currentProfile.hospital_name || '';
+  var type = currentProfile.facility_type || 'مستشفى';
+  document.getElementById('facilityModalTitle').textContent = 'ملف ' + type;
+  document.getElementById('facilityNameDisplay').textContent = name;
+  document.getElementById('facilityTypeDisplay').textContent = type + (currentProfile.city ? ' • ' + currentProfile.city : '');
+  document.getElementById('editFacilityName').value = name;
+  updateCharCount(document.getElementById('editFacilityName'), 'editFacilityNameCount', 40);
+  document.getElementById('editFacilityType').value = type;
+  document.getElementById('editFacilityPhone').value = currentProfile.phone || '';
+
+  document.getElementById('editFacilityCity').value = currentProfile.city || '';
+  document.getElementById('editFacilityAddress').value = currentProfile.address || '';
+  document.getElementById('editFacilityDesc').value = currentProfile.description || '';
+  newFacilityAvatarFile = null;
+  renderFacilityAvatar(currentProfile.avatar_url || null);
+  clearAlert('facilityModalAlert');
+  openModal('facilityProfileModal');
+}
+
+async function handleUpdateFacilityProfile() {
+  clearAlert('facilityModalAlert');
+  if (!currentUser) return;
+
+  var saveBtn = document.querySelector('#facilityProfileModal .btn-primary');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block"></div> جاري الحفظ...'; }
+
+  try {
+    // Upload avatar if changed
+    var avatarUrl = (currentProfile && currentProfile.avatar_url) ? currentProfile.avatar_url : null;
+    if (newFacilityAvatarFile) {
+      var ext = newFacilityAvatarFile.name.split('.').pop();
+      var blob = await resizeImageToBlob(newFacilityAvatarFile, 400);
+      var path = currentUser.id + '/avatar.jpg';
+      var upResult = await sb.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+      if (!upResult.error) {
+        var pub = sb.storage.from('avatars').getPublicUrl(path);
+        avatarUrl = pub.data.publicUrl + '?t=' + Date.now();
+      }
+    }
+
+    var newName = document.getElementById('editFacilityName').value || '';
+    var newType = document.getElementById('editFacilityType').value || 'مستشفى';
+
+    var result = await sb.from('hospitals').update({
+      hospital_name: newName,
+      facility_type: newType,
+      phone: document.getElementById('editFacilityPhone').value || '',
+      city: document.getElementById('editFacilityCity').value || '',
+      address: document.getElementById('editFacilityAddress').value || '',
+      description: document.getElementById('editFacilityDesc').value || '',
+      avatar_url: avatarUrl,
+      updated_at: new Date().toISOString(),
+    }).eq('id', currentUser.id).select();
+
+    if (result.error) {
+      showAlert('facilityModalAlert', 'حصل خطأ: ' + result.error.message);
+      return;
+    }
+
+    newFacilityAvatarFile = null;
+    await loadUserProfile();
+    var displayName = (currentProfile && currentProfile.hospital_name) ? currentProfile.hospital_name : newName;
+    document.getElementById('hospitalWelcomeName').textContent = displayName;
+    document.getElementById('navUserName').textContent = displayName;
+    renderNavAvatar(currentProfile && currentProfile.avatar_url, displayName);
+    showAlert('facilityModalAlert', '✅ تم الحفظ بنجاح', 'success');
+    setTimeout(function() { closeModal('facilityProfileModal'); }, 1000);
+
+  } catch(err) {
+    console.error('handleUpdateFacilityProfile error:', err);
+    showAlert('facilityModalAlert', 'حصل خطأ: ' + err.message);
   } finally {
     if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save"></i> حفظ التغييرات'; }
   }
@@ -2967,10 +3509,17 @@ async function completePendingRegistration(userId, pending) {
       p_bio: pending.bio || null,
       p_specializations: pending.specializations || null,
       p_hospital_name: pending.hospital_name || null,
+      p_facility_type: pending.facility_type || 'مستشفى',
       p_address: pending.address || null,
       p_description: pending.description || null,
     });
     if (error) throw error;
+
+    // Save avatar_url if present
+    if (pending.avatar_url) {
+      var table = pending.role === 'nurse' ? 'nurses' : 'hospitals';
+      await sb.from(table).update({ avatar_url: pending.avatar_url }).eq('id', userId);
+    }
     console.log('Profile created via RPC OK');
   } catch(e) {
     console.error('completePendingRegistration error:', e);
