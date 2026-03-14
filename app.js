@@ -1705,6 +1705,13 @@ async function translateCvData(p) {
   if (translated.city) {
     translated.city = translateCity(translated.city);
   }
+  // Name - transliterate Arabic to English
+  if (translated.full_name) {
+    var arabicInName = (translated.full_name.match(/[؀-ۿ]/g) || []).length;
+    if (arabicInName > 0) {
+      translated.full_name = await translateNameToEnglish(translated.full_name);
+    }
+  }
   // Bio - use AI if Arabic
   if (translated.bio) {
     translated.bio = await translateTextWithAI(translated.bio);
@@ -1736,6 +1743,37 @@ function openCvFlow() {
   }
 }
 
+var workExpCounter = 0;
+
+function addWorkExpRow() {
+  workExpCounter++;
+  var n = workExpCounter;
+  var list = document.getElementById('workExpList');
+  var row = document.createElement('div');
+  row.id = 'wexp_' + n;
+  row.style.cssText = 'background:var(--bg);border-radius:10px;padding:12px 14px;border:1px solid var(--border);position:relative';
+  row.innerHTML =
+    '<button type="button" onclick="this.parentElement.remove()" ' +
+    'style="position:absolute;top:8px;left:10px;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;line-height:1" ' +
+    'title="\u062d\u0630\u0641">\u2715</button>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">' +
+    '  <div class="form-group" style="margin:0">' +
+    '    <label style="font-size:12px">\u0627\u0633\u0645 \u0627\u0644\u0645\u0643\u0627\u0646 <span style="color:#ef4444">*</span></label>' +
+    '    <input type="text" name="workplace" placeholder="\u0645\u062b\u0627\u0644: \u0645\u0633\u062a\u0634\u0641\u0649 \u0627\u0644\u0645\u0646\u064a\u0627 \u0627\u0644\u062c\u0627\u0645\u0639\u064a" style="font-size:13px;padding:8px 10px" />' +
+    '  </div>' +
+    '  <div class="form-group" style="margin:0">' +
+    '    <label style="font-size:12px">\u0627\u0644\u0645\u0633\u0645\u0649 \u0627\u0644\u0648\u0638\u064a\u0641\u064a</label>' +
+    '    <input type="text" name="jobtitle" placeholder="Registered Nurse" style="font-size:13px;padding:8px 10px" />' +
+    '  </div>' +
+    '</div>' +
+    '<div class="form-group" style="margin:0">' +
+    '  <label style="font-size:12px">\u0639\u062f\u062f \u0633\u0646\u0648\u0627\u062a \u0627\u0644\u0639\u0645\u0644 <span style="color:#ef4444">*</span></label>' +
+    '  <input type="number" name="years" placeholder="2" min="0.5" max="40" step="0.5" style="font-size:13px;padding:8px 10px;width:120px" />' +
+    '</div>';
+  list.appendChild(row);
+}
+
+
 async function saveCvExtra() {
   var degree      = document.getElementById('cvEduDegree').value.trim();
   var institution = document.getElementById('cvEduInstitution').value.trim();
@@ -1747,6 +1785,19 @@ async function saveCvExtra() {
     return;
   }
 
+  // Collect work experience rows
+  var workRows = document.querySelectorAll('#workExpList > div');
+  var workExps = [];
+  for (var i = 0; i < workRows.length; i++) {
+    var workplace = workRows[i].querySelector('[name="workplace"]').value.trim();
+    var jobtitle  = workRows[i].querySelector('[name="jobtitle"]').value.trim() || 'Registered Nurse';
+    var years     = parseFloat(workRows[i].querySelector('[name="years"]').value) || 0;
+    if (workplace && years > 0) {
+      workExps.push({ nurse_id: currentUser.id, workplace_name: workplace, job_title: jobtitle, years_worked: years });
+    }
+  }
+
+  // Save nurse profile
   var { error } = await sb.from('nurses').update({
     education_degree: degree,
     education_institution: institution,
@@ -1756,6 +1807,13 @@ async function saveCvExtra() {
   }).eq('id', currentUser.id);
 
   if (error) { showAlert('cvExtraAlert', 'حصل خطأ: ' + error.message, 'error'); return; }
+
+  // Save work experiences (delete old then insert new)
+  if (workExps.length > 0) {
+    await sb.from('work_experiences').delete().eq('nurse_id', currentUser.id);
+    var { error: weErr } = await sb.from('work_experiences').insert(workExps);
+    if (weErr) { showAlert('cvExtraAlert', 'حصل خطأ في حفظ الخبرات: ' + weErr.message, 'error'); return; }
+  }
 
   currentProfile.education_degree      = degree;
   currentProfile.education_institution = institution;
@@ -1795,14 +1853,57 @@ async function downloadCV() {
   var email = currentUser ? (currentUser.email || '') : '';
   var type = selectedCvType;
   var translated = await translateCvData(currentProfile);
-  printCV(translated, email, type);
+  // Fetch work experiences
+  var { data: workExps } = await sb.from('work_experiences').select('*').eq('nurse_id', currentUser.id).order('years_worked', { ascending: false });
+  translated._workExps = workExps || [];
+  var avatarB64 = null;
+  if (type === 'visual' && currentProfile.avatar_url) {
+    avatarB64 = await fetchImageAsBase64(currentProfile.avatar_url);
+  }
+  printCV(translated, email, type, avatarB64);
   closeModal('cvModal');
   selectedCvType = null;
   if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-download"></i> تحميل PDF'; }
 }
 
+// Dedicated name transliteration - returns only the English name
+async function translateNameToEnglish(arabicName) {
+  try {
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 50,
+        system: 'You are a name transliterator. Convert Arabic names to English romanization. Respond with ONLY the transliterated name, nothing else.',
+        messages: [{ role: 'user', content: arabicName }]
+      })
+    });
+    var data = await resp.json();
+    if (data.content && data.content[0] && data.content[0].text) {
+      return data.content[0].text.trim();
+    }
+  } catch(e) {}
+  return arabicName;
+}
+
+// Helper: fetch image as base64 for print window
+async function fetchImageAsBase64(url) {
+  if (!url) return null;
+  try {
+    var resp = await fetch(url);
+    var blob = await resp.blob();
+    return new Promise(function(resolve) {
+      var reader = new FileReader();
+      reader.onloadend = function() { resolve(reader.result); };
+      reader.onerror  = function() { resolve(null); };
+      reader.readAsDataURL(blob);
+    });
+  } catch(e) { return null; }
+}
+
 // Core: open a print window with clean CV HTML
-function printCV(p, email, type) {
+function printCV(p, email, type, avatarBase64) {
   var name        = p.full_name        || '';
   var phone       = p.phone            || '';
   var city        = p.city             || '';
@@ -1836,6 +1937,10 @@ function printCV(p, email, type) {
     certHtml = '<h2>CERTIFICATIONS</h2><ul>' + certs.map(function(c){ return '<li>' + c + '</li>'; }).join('') + '</ul>';
   }
 
+  // Work experiences from DB
+  var workExps = p._workExps || [];
+
+  // Build experience bullets - use real work history if available, else generic
   var expBullets = [
     'Provide comprehensive nursing care including patient assessment, care planning, and implementation of evidence-based interventions.',
     'Administer medications and treatments in accordance with physician orders and clinical protocols.',
@@ -1843,6 +1948,51 @@ function printCV(p, email, type) {
     'Maintain accurate and thorough clinical documentation in compliance with regulatory standards.',
   ];
   if (specs.length) expBullets.push('Apply specialized expertise in ' + specs.join(', ') + ' to address complex patient needs.');
+
+  // Build work experience HTML blocks
+  var workExpHtml = '';
+  if (workExps.length > 0) {
+    workExpHtml = workExps.map(function(we) {
+      var yr = we.years_worked;
+      var endYear = new Date().getFullYear();
+      var startYear = Math.round(endYear - yr);
+      return [
+        '<div style="margin-bottom:10px">',
+        '<div class="job-header">',
+        '<span class="job-title">' + (we.job_title || 'Registered Nurse') + '</span>',
+        '<span class="job-date">' + startYear + ' – ' + endYear + '</span>',
+        '</div>',
+        '<div class="job-company">' + we.workplace_name + '</div>',
+        '</div>',
+      ].join('');
+    }).join('');
+  } else {
+    // fallback generic
+    workExpHtml = [
+      '<div class="job-header"><span class="job-title">Registered Nurse</span><span class="job-date">' + expFrom + ' – Present</span></div>',
+      '<div class="job-company">' + (city ? 'Clinical Facility, ' + city : 'Clinical Practice') + '</div>',
+    ].join('');
+  }
+
+  // Visual variant work exp HTML
+  var workExpVisHtml = '';
+  if (workExps.length > 0) {
+    workExpVisHtml = workExps.map(function(we) {
+      var yr = we.years_worked;
+      var endYear = new Date().getFullYear();
+      var startYear = Math.round(endYear - yr);
+      return [
+        '<div class="exp-row"><span class="exp-jobtitle">' + (we.job_title || 'Registered Nurse') + '</span>',
+        '<span class="exp-date">' + startYear + ' &ndash; ' + endYear + '</span></div>',
+        '<div class="exp-company">' + we.workplace_name + '</div>',
+      ].join('');
+    }).join('<div style="margin-bottom:8px"></div>');
+  } else {
+    workExpVisHtml = [
+      '<div class="exp-row"><span class="exp-jobtitle">Registered Nurse</span><span class="exp-date">' + expFrom + ' &ndash; Present</span></div>',
+      '<div class="exp-company">' + (city ? 'Clinical Facility &mdash; ' + city : 'Clinical Practice') + '</div>',
+    ].join('');
+  }
 
   var skillLines = [
     'Patient Assessment & Care Planning, Medication Administration, Wound Care Management',
@@ -1879,7 +2029,7 @@ function printCV(p, email, type) {
     .sidebar { width: 68mm; background: #0a3d62; color: #fff; padding: 0 14px 20px; display: flex; flex-direction: column; }\
     .sidebar-accent { height: 5px; background: #00b894; margin: 0 -14px 0; }\
     .avatar-wrap { text-align: center; margin: 22px 0 10px; }\
-    .avatar-circle { width: 72px; height: 72px; border-radius: 50%; background: #fff; border: 2.5px solid #00b894; display: inline-flex; align-items: center; justify-content: center; font-size: 28pt; font-weight: 900; color: #0a3d62; line-height: 1; }\
+    .avatar-circle { width: 72px; height: 72px; border-radius: 50%; background: #fff; border: 2.5px solid #00b894; display: inline-flex; align-items: center; justify-content: center; font-size: 28pt; font-weight: 900; color: #0a3d62; line-height: 1; overflow: hidden; } .avatar-circle img { width: 72px; height: 72px; object-fit: cover; border-radius: 50%; display: block; }\
     .s-name { font-size: 12pt; font-weight: bold; text-align: center; color: #fff; margin-bottom: 3px; line-height: 1.2; }\
     .s-role { font-size: 7.5pt; color: #00b894; text-align: center; letter-spacing: 0.5px; margin-bottom: 16px; }\
     .s-section { font-size: 7.5pt; font-weight: bold; color: #00b894; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 4px; border-bottom: 0.5px solid #00b894; padding-bottom: 3px; }\
@@ -1922,11 +2072,7 @@ function printCV(p, email, type) {
       <hr class="thick">\
       <h2>PROFESSIONAL SUMMARY</h2><hr class="thin">\
       <p>' + summary + '</p>\
-      <h2>WORK EXPERIENCE</h2><hr class="thin">\
-      <div class="job-header"><span class="job-title">Registered Nurse</span><span class="job-date">' + expFrom + ' – Present</span></div>\
-      <div class="job-company">' + (city ? 'Clinical Facility, ' + city : 'Clinical Practice') + '</div>\
-      <ul>' + expBullets.map(function(b){ return '<li>' + b + '</li>'; }).join('') + '</ul>\
-      <h2>EDUCATION</h2><hr class="thin">\
+      <h2>WORK EXPERIENCE</h2><hr class="thin">\n      ' + workExpHtml + '<ul>' + expBullets.map(function(b){ return '<li>' + b + '</li>'; }).join('') + '</ul>\n      <h2>EDUCATION</h2><hr class="thin">\
       <div class="edu-header"><span class="job-title">' + degree + '</span>' + (gradYear ? '<span class="job-date">Graduated: ' + gradYear + '</span>' : '') + '</div>\
       <div class="job-company">' + institution + '</div>\
       <h2>SKILLS</h2><hr class="thin">\
@@ -1943,58 +2089,73 @@ function printCV(p, email, type) {
     .map(function(s){ return '<div class="skill-item"><span class="skill-dot"></span>' + s + '</div>'; }).join('');
   var certsHtml = certs.length ? '<div class="s-section">CERTIFICATIONS</div>' + certs.map(function(c){ return '<div class="s-text">• ' + c + '</div>'; }).join('') : '';
 
-  var visualHtml = '\
-    <div class="page">\
-      <div class="sidebar">\
-        <div class="sidebar-accent"></div>\
-        <div class="avatar-wrap"><div class="avatar-circle">' + name.charAt(0).toUpperCase() + '</div></div>\
-        <div class="s-name">' + name + '</div>\
-        <div class="s-role">REGISTERED NURSE</div>\
-        <div class="s-section">CONTACT</div>\
-        ' + (phone    ? '<div class="s-text">' + phone    + '</div>' : '') + '\
-        ' + (email    ? '<div class="s-text"><a href="mailto:' + email + '">' + email + '</a></div>' : '') + '\
-        ' + (city     ? '<div class="s-text">' + city + '</div>' : '') + '\
-        ' + (linkedin ? '<div class="s-text"><a href="https://' + linkedin.replace('https://','') + '">' + linkedin + '</a></div>' : '') + '\
-        <div class="s-section">EXPERIENCE</div>\
-        <div class="exp-num">' + exp + '</div>\
-        <div class="exp-sub">years of nursing</div>\
-        ' + (specs.length ? '<div class="s-section">SPECIALIZATIONS</div>' + specTagsHtml : '') + '\
-        ' + certsHtml + '\
-        <div class="s-section">EDUCATION</div>\
-        <div class="s-text" style="font-weight:bold;color:#fff">' + degree + '</div>\
-        ' + (institution ? '<div class="s-text">' + institution + '</div>' : '') + '\
-        ' + (gradYear    ? '<div class="s-text" style="color:#aac8dc">Graduated: ' + gradYear + '</div>' : '') + '\
-        <div class="shift-brand">Shift.</div>\
-        <div class="shift-url">shift.vercel.app</div>\
-      </div>\
-      <div class="main">\
-        <div class="date-stamp">' + new Date().toLocaleDateString('en-GB') + '</div>\
-        <div class="m-section">\
-          <div class="m-title-row"><div class="m-bar"></div><div class="m-title">PROFESSIONAL SUMMARY</div></div>\
-          <hr class="m-divider">\
-          <div class="m-body">' + summary + '</div>\
-        </div>\
-        <div class="m-section">\
-          <div class="m-title-row"><div class="m-bar"></div><div class="m-title">WORK EXPERIENCE</div></div>\
-          <hr class="m-divider">\
-          <div class="exp-row"><span class="exp-jobtitle">Registered Nurse</span><span class="exp-date">' + expFrom + ' – Present</span></div>\
-          <div class="exp-company">' + (city ? 'Clinical Facility &mdash; ' + city : 'Clinical Practice') + '</div>\
-          <ul class="m-ul">' + expBullets.map(function(b){ return '<li>' + b + '</li>'; }).join('') + '</ul>\
-        </div>\
-        <div class="m-section">\
-          <div class="m-title-row"><div class="m-bar"></div><div class="m-title">CORE COMPETENCIES</div></div>\
-          <hr class="m-divider">\
-          <div class="skills-grid">' + skillsGridHtml + '</div>\
-        </div>\
-        <div class="m-section">\
-          <div class="m-title-row"><div class="m-bar"></div><div class="m-title">LANGUAGES</div></div>\
-          <hr class="m-divider">\
-          <div class="lang-row"><span class="lang-name">Arabic &mdash; Native</span><div class="lang-bar-bg"><div class="lang-bar-fill" style="width:100%"></div></div></div>\
-          <div class="lang-row"><span class="lang-name">English &mdash; Professional</span><div class="lang-bar-bg"><div class="lang-bar-fill" style="width:72%"></div></div></div>\
-        </div>\
-      </div>\
-    </div>\
-  ';
+  var avatarHtmlForCV = avatarBase64
+    ? '<img src="' + avatarBase64 + '" style="width:72px;height:72px;object-fit:cover;border-radius:50%;display:block;" alt="">'
+    : '<span>' + name.charAt(0).toUpperCase() + '</span>';
+
+  var specTagsHtml = specs.map(function(s){ return '<span class="spec-tag">' + s + '</span>'; }).join('');
+  var certsSideHtml = certs.length
+    ? '<div class="s-section">CERTIFICATIONS</div>' + certs.map(function(c){ return '<div class="s-text">• ' + c + '</div>'; }).join('')
+    : '';
+  var expBulletsVis = [
+    'Provide comprehensive nursing care including patient assessment, care planning, and implementation of evidence-based interventions.',
+    'Administer medications and treatments in accordance with physician orders and clinical protocols.',
+    'Collaborate with multidisciplinary teams to ensure optimal patient outcomes and continuity of care.',
+    'Maintain accurate and thorough clinical documentation in compliance with regulatory standards.',
+  ];
+  if (specs.length) expBulletsVis.push('Apply specialized expertise in ' + specs.join(', ') + ' to address complex patient needs.');
+  var skillsGridVis = ['Patient Assessment','Medication Administration','Clinical Documentation','Wound Care Management','Emergency Response','Infection Control','Team Collaboration','Patient Education']
+    .map(function(s){ return '<div class="skill-item"><span class="skill-dot"></span>' + s + '</div>'; }).join('');
+
+  var visualHtml = [
+    '<div class="page">',
+    '  <div class="sidebar">',
+    '    <div class="sidebar-accent"></div>',
+    '    <div class="avatar-wrap"><div class="avatar-circle">' + avatarHtmlForCV + '</div></div>',
+    '    <div class="s-name">' + name + '</div>',
+    '    <div class="s-role">REGISTERED NURSE</div>',
+    '    <div class="s-section">CONTACT</div>',
+    (phone    ? '<div class="s-text">' + phone    + '</div>' : ''),
+    (email    ? '<div class="s-text"><a href="mailto:' + email + '">' + email + '</a></div>' : ''),
+    (city     ? '<div class="s-text">' + city     + '</div>' : ''),
+    (linkedin ? '<div class="s-text"><a href="https://' + linkedin.replace('https://','') + '">' + linkedin + '</a></div>' : ''),
+    '    <div class="s-section">EXPERIENCE</div>',
+    '    <div class="exp-num">' + exp + '</div>',
+    '    <div class="exp-sub">years of nursing</div>',
+    (specs.length ? '<div class="s-section">SPECIALIZATIONS</div>' + specTagsHtml : ''),
+    certsSideHtml,
+    '    <div class="s-section">EDUCATION</div>',
+    '    <div class="s-text" style="font-weight:bold;color:#fff">' + degree + '</div>',
+    (institution ? '<div class="s-text">' + institution + '</div>' : ''),
+    (gradYear    ? '<div class="s-text" style="color:#aac8dc">Graduated: ' + gradYear + '</div>' : ''),
+    '    <div class="shift-brand">Shift.</div>',
+    '    <div class="shift-url">shift.vercel.app</div>',
+    '  </div>',
+    '  <div class="main">',
+    '    <div class="date-stamp">' + new Date().toLocaleDateString('en-GB') + '</div>',
+    '    <div class="m-section">',
+    '      <div class="m-title-row"><div class="m-bar"></div><div class="m-title">PROFESSIONAL SUMMARY</div></div>',
+    '      <hr class="m-divider">',
+    '      <div class="m-body">' + summary + '</div>',
+    '    </div>',
+    '    <div class="m-section">',
+    '      <div class="m-title-row"><div class="m-bar"></div><div class="m-title">WORK EXPERIENCE</div></div>',
+    '      <hr class="m-divider">',
+    '      ' + workExpVisHtml + '<ul class="m-ul">' + expBulletsVis.map(function(b){ return '<li>' + b + '</li>'; }).join('') + '</ul>\\n    </div>',
+    '<div class="m-section">',
+    '      <div class="m-title-row"><div class="m-bar"></div><div class="m-title">CORE COMPETENCIES</div></div>',
+    '      <hr class="m-divider">',
+    '      <div class="skills-grid">' + skillsGridVis + '</div>',
+    '    </div>',
+    '    <div class="m-section">',
+    '      <div class="m-title-row"><div class="m-bar"></div><div class="m-title">LANGUAGES</div></div>',
+    '      <hr class="m-divider">',
+    '      <div class="lang-row"><span class="lang-name">Arabic &mdash; Native</span><div class="lang-bar-bg"><div class="lang-bar-fill" style="width:100%"></div></div></div>',
+    '      <div class="lang-row"><span class="lang-name">English &mdash; Professional</span><div class="lang-bar-bg"><div class="lang-bar-fill" style="width:72%"></div></div></div>',
+    '    </div>',
+    '  </div>',
+    '</div>',
+  ].join('\n');
 
   var chosenStyles = type === 'visual' ? visualStyles : atsStyles;
   var chosenHtml   = type === 'visual' ? visualHtml   : atsHtml;
@@ -2012,6 +2173,8 @@ async function downloadNurseCV(nurseId) {
   var { data, error } = await sb.from('nurses').select('*').eq('id', nurseId).single();
   if (error || !data) { alert('تعذر تحميل بيانات الممرض'); if(btn){btn.disabled=false;} return; }
   var translated = await translateCvData(data);
-  printCV(translated, '', 'ats');
+  var { data: workExps } = await sb.from('work_experiences').select('*').eq('nurse_id', nurseId).order('years_worked', { ascending: false });
+  translated._workExps = workExps || [];
+  printCV(translated, '', 'ats', null);
   if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-pdf"></i> تحميل السيرة الذاتية PDF'; }
 }
