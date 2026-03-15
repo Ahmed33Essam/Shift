@@ -1064,8 +1064,17 @@
       gap: 4px;
     }
     /* Hide button text on mobile, keep icons */
-    #navGuest .btn-text,
     #navUser .btn-danger .btn-text {
+      display: none;
+    }
+    /* Login: keep icon + text but compact */
+    #navGuest .btn-ghost {
+      padding: 6px 8px;
+      font-size: 12px;
+      gap: 4px;
+    }
+    /* Register: icon only */
+    #navGuest .btn-primary .btn-text {
       display: none;
     }
     /* Dark toggle */
