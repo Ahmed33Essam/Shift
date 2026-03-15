@@ -1032,6 +1032,54 @@
     .form-row { grid-template-columns: 1fr; }
     .stats-bar { gap: 30px; }
     .dashboard { padding: 20px 16px; }
+
+    /* ── Navbar mobile ── */
+    .navbar {
+      padding: 0 14px;
+      height: 56px;
+    }
+    .logo {
+      font-size: 20px;
+    }
+    .nav-actions {
+      gap: 6px;
+    }
+    /* Hide username text on mobile */
+    #navUserName {
+      display: none !important;
+    }
+    /* Shrink buttons on mobile */
+    #navUser .btn-danger {
+      padding: 7px 10px;
+      font-size: 13px;
+      gap: 4px;
+    }
+    #navGuest .btn-ghost {
+      padding: 7px 12px;
+      font-size: 13px;
+    }
+    #navGuest .btn-primary {
+      padding: 7px 12px;
+      font-size: 13px;
+      gap: 4px;
+    }
+    /* Hide button text on mobile, keep icons */
+    #navGuest .btn-text,
+    #navUser .btn-danger .btn-text {
+      display: none;
+    }
+    /* Dark toggle */
+    .dark-toggle {
+      width: 34px;
+      height: 34px;
+      font-size: 14px;
+    }
+    /* Avatar */
+    #navAvatarWrap img,
+    #navAvatarWrap .nav-avatar {
+      width: 32px !important;
+      height: 32px !important;
+    }
   }
 
   .w-full { width: 100%; }

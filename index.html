@@ -17,14 +17,14 @@
   <div class="logo" onclick="showPage('landing')">Shift<span>.</span></div>
   <div class="nav-actions" id="navActions">
     <button class="dark-toggle" onclick="toggleDarkMode()" id="darkToggleBtn" title="تبديل المظهر">🌙</button>
-    <div id="navGuest">
-      <button class="btn btn-ghost" onclick="showAuthPage('login')">تسجيل الدخول</button>
-      <button class="btn btn-primary" onclick="showAuthPage('register')"><i class="fas fa-user-plus"></i> سجّل الآن</button>
+    <div id="navGuest" style="display:flex;align-items:center;gap:6px">
+      <button class="btn btn-ghost" onclick="showAuthPage('login')" style="padding:7px 14px"><span class="btn-text">تسجيل الدخول</span></button>
+      <button class="btn btn-primary" onclick="showAuthPage('register')" style="padding:7px 14px"><i class="fas fa-user-plus"></i><span class="btn-text"> سجّل الآن</span></button>
     </div>
-    <div id="navUser" class="hidden" style="display:none;align-items:center;gap:12px">
+    <div id="navUser" class="hidden" style="display:none;align-items:center;gap:8px">
       <span id="navUserName" style="font-weight:700;color:var(--primary);font-size:14px"></span>
       <div id="navAvatarWrap" onclick="currentRole==='nurse'?showProfileModal():showFacilityProfileModal()" title="الملف الشخصي" style="cursor:pointer"></div>
-      <button class="btn btn-danger btn-sm" onclick="logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
+      <button class="btn btn-danger btn-sm" onclick="logout()" style="padding:7px 12px"><i class="fas fa-sign-out-alt"></i><span class="btn-text"> خروج</span></button>
     </div>
   </div>
 </nav>
@@ -830,6 +830,85 @@
     <div class="modal-footer" id="appDetailFooter"></div>
   </div>
 </div>
+</div>
+
+<!-- Job Detail Modal (Nurse view) -->
+<div class="modal-overlay" id="jobDetailModal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <h3><i class="fas fa-briefcase-medical"></i> تفاصيل الوظيفة</h3>
+      <button class="modal-close" onclick="closeModal('jobDetailModal')">×</button>
+    </div>
+    <div class="modal-body" id="jobDetailBody"></div>
+    <div class="modal-footer" id="jobDetailFooter"></div>
+  </div>
+</div>
+
+<!-- Edit Job Modal (Hospital view) -->
+<div class="modal-overlay" id="editJobModal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <h3><i class="fas fa-edit"></i> تعديل الوظيفة</h3>
+      <button class="modal-close" onclick="closeModal('editJobModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="editJobAlert" style="margin-bottom:8px"></div>
+      <form id="editJobForm" onsubmit="saveEditJob(event)">
+        <div class="form-group">
+          <label>عنوان الوظيفة <span style="color:#ef4444">*</span></label>
+          <input type="text" id="editJobTitle" placeholder="مثال: ممرض طوارئ" required />
+        </div>
+        <div class="form-group">
+          <label>وصف الوظيفة <span style="color:#ef4444">*</span></label>
+          <textarea id="editJobDesc" rows="3" placeholder="اكتب وصف الوظيفة..." required></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label>التخصص المطلوب</label>
+            <input type="text" id="editJobSpec" placeholder="مثال: طوارئ، ICU" />
+          </div>
+          <div class="form-group">
+            <label>نوع الشيفت</label>
+            <select id="editJobShift">
+              <option value="">-- اختر --</option>
+              <option value="صباحي">صباحي</option>
+              <option value="مسائي">مسائي</option>
+              <option value="ليلي">ليلي</option>
+              <option value="دوام كامل">دوام كامل</option>
+              <option value="دوام جزئي">دوام جزئي</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label>الراتب من (جنيه) <span style="color:#ef4444">*</span></label>
+            <input type="number" id="editJobSalMin" min="0" required />
+          </div>
+          <div class="form-group">
+            <label>الراتب إلى (جنيه) <span style="color:#ef4444">*</span></label>
+            <input type="number" id="editJobSalMax" min="0" required />
+          </div>
+          <div class="form-group">
+            <label>عدد الممرضين المطلوب</label>
+            <input type="number" id="editJobNeeded" min="1" max="100" value="1" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>المتطلبات</label>
+          <textarea id="editJobReqs" rows="2" placeholder="المتطلبات والشروط..."></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('editJobModal')">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveEditJob(event)">
+        <i class="fas fa-save"></i> حفظ التعديلات
+      </button>
+    </div>
+  </div>
+</div>
+
+
 
 <script src="app.js"></script>
 

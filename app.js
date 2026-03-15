@@ -731,10 +731,31 @@ async function loadJobs() {
     .select('job_id').eq('nurse_id', currentUser.id);
   const appliedIds = new Set(myApps?.map(a => a.job_id) || []);
 
-  document.getElementById('jobsList').innerHTML = `<div class="jobs-grid">${jobs.map(job => renderJobCard(job, appliedIds)).join('')}</div>`;
+  // Fetch accepted counts for all jobs at once
+  const jobIds = jobs.map(j => j.id);
+  var acceptedMap = {};
+  if (jobIds.length > 0) {
+    const { data: acceptedApps } = await sb.from('applications')
+      .select('job_id')
+      .in('job_id', jobIds)
+      .eq('status', 'accepted');
+    (acceptedApps || []).forEach(function(a) {
+      acceptedMap[a.job_id] = (acceptedMap[a.job_id] || 0) + 1;
+    });
+  }
+
+  document.getElementById('jobsList').innerHTML = `<div class="jobs-grid">${jobs.map(job => renderJobCard(job, appliedIds, acceptedMap)).join('')}</div>`;
 }
 
-function renderJobCard(job, appliedIds) {
+
+function remainingBadge(job, acceptedMap) {
+  if (!job.nurses_needed) return '';
+  var accepted = (acceptedMap && acceptedMap[job.id]) || 0;
+  var remaining = Math.max(0, job.nurses_needed - accepted);
+  var color = remaining === 0 ? '#ef4444' : remaining <= 2 ? '#f59e0b' : 'var(--accent)';
+  return '<div class="job-meta-item" style="color:' + color + ';font-weight:700"><i class="fas fa-users"></i>' + (remaining === 0 ? 'اكتملت' : remaining + ' متبقي من ' + job.nurses_needed) + '</div>';
+}
+function renderJobCard(job, appliedIds, acceptedMap) {
   const applied = appliedIds?.has(job.id);
   const hospital = job.hospitals;
   const initials = hospital?.hospital_name?.substring(0, 2) || '🏥';
@@ -744,7 +765,7 @@ function renderJobCard(job, appliedIds) {
     : `<div class="hospital-avatar">${initials}</div>`;
 
   return `
-    <div class="job-card">
+    <div class="job-card" onclick="openJobDetail('${job.id}')" style="cursor:pointer">
       <div class="job-card-header">
         <div class="hospital-info">
           ${facilityAvatarHtml}
@@ -761,7 +782,7 @@ function renderJobCard(job, appliedIds) {
       <div class="job-title">${job.title}</div>
       <div class="job-meta">
         ${job.specialization ? `<div class="job-meta-item"><i class="fas fa-stethoscope"></i>${job.specialization}</div>` : ''}
-        ${job.nurses_needed ? `<div class="job-meta-item"><i class="fas fa-users"></i>${job.nurses_needed} ممرض مطلوب</div>` : ''}
+        ${remainingBadge(job, acceptedMap)}
       </div>
       ${(job.salary_min || job.salary_max) ? `
       <div class="salary-range">
@@ -774,7 +795,7 @@ function renderJobCard(job, appliedIds) {
         ${benefits.length > 3 ? `<span class="benefit-tag">+${benefits.length - 3}</span>` : ''}
       </div>` : ''}
       <button class="btn ${applied ? 'btn-ghost' : 'btn-primary'} w-full" 
-        ${applied ? 'disabled' : `onclick="openApplyModal('${job.id}', '${job.title}', '${hospital?.hospital_name}')"`}>
+        ${applied ? 'disabled' : `onclick="event.stopPropagation();openApplyModal('${job.id}', '${job.title}', '${hospital?.hospital_name}')"`}>
         ${applied ? '<i class="fas fa-check"></i> تم التقديم' : '<i class="fas fa-paper-plane"></i> تقدّم الآن'}
       </button>
     </div>`;
@@ -828,9 +849,26 @@ async function loadMyApplications() {
           ${new Date(app.created_at).toLocaleDateString('ar-EG')}
         </div>
       </div>
-      <div class="status-badge ${statusClass[app.status]}">${statusMap[app.status]}</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <div class="status-badge ${statusClass[app.status]}">${statusMap[app.status]}</div>
+        ${(app.status === 'pending' || app.status === 'reviewed') ? `
+        <button onclick="withdrawApplication('${app.id}')" title="سحب الطلب"
+          style="background:none;border:1.5px solid #ef4444;color:#ef4444;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:600;transition:all 0.2s"
+          onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='none'">
+          <i class="fas fa-times"></i> سحب
+        </button>` : ''}
+      </div>
     </div>
   `).join('');
+}
+
+
+async function withdrawApplication(appId) {
+  if (!confirm('هل تريد سحب هذا الطلب؟')) return;
+  var { error } = await sb.from('applications').delete().eq('id', appId).eq('nurse_id', currentUser.id);
+  if (error) { alert('حصل خطأ أثناء سحب الطلب'); return; }
+  loadMyApplications();
+  loadJobs(); // refresh remaining counter
 }
 
 // ========== HOSPITAL - JOBS ==========
@@ -880,7 +918,10 @@ async function loadHospitalJobs() {
         <button class="btn btn-outline btn-sm" style="flex:1" onclick="viewJobApplications('${job.id}', '${job.title}')">
           <i class="fas fa-users"></i> الطلبات (${job.applications?.length || 0})
         </button>
-        <button class="btn btn-danger btn-sm" onclick="deleteJob('${job.id}')">
+        <button class="btn btn-ou        <button class="btn btn-outline btn-sm" onclick="loadAndEditJob('${job.id}')" title="تعديل">
+          <i class="fas fa-edit"></i>
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="deleteJob('${job.id}')" title="حذف">
           <i class="fas fa-trash"></i>
         </button>
       </div>
@@ -1187,8 +1228,8 @@ async function updateAppStatus(appId, status) {
     await checkAndCompleteJob(app.job_id);
   }
 
-  loadHospitalApplications();
-  loadHospitalStats();
+  await loadHospitalApplications();
+  await loadHospitalStats();
 }
 
 async function checkAndCompleteJob(jobId) {
@@ -1268,9 +1309,13 @@ async function handleAddJob(e) {
   if (error) return showAlert('jobModalAlert', 'حصل خطأ أثناء نشر الوظيفة');
 
   closeModal('jobModal');
-  loadHospitalJobs();
-  loadHospitalStats();
-  showAlert('jobModalAlert', 'تم نشر الوظيفة بنجاح ✓', 'success');
+  await loadHospitalJobs();
+  await loadHospitalStats();
+  var t2 = document.createElement('div');
+  t2.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--accent);color:white;padding:10px 22px;border-radius:100px;font-weight:700;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,184,148,0.4)';
+  t2.innerHTML = '<i class="fas fa-check-circle"></i> تم نشر الوظيفة';
+  document.body.appendChild(t2);
+  setTimeout(function() { t2.remove(); }, 2500);
 }
 
 // ========== APPLY ==========
@@ -2177,4 +2222,183 @@ async function downloadNurseCV(nurseId) {
   translated._workExps = workExps || [];
   printCV(translated, '', 'ats', null);
   if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-pdf"></i> تحميل السيرة الذاتية PDF'; }
+}
+
+// ========== JOB DETAIL (Nurse View) ==========
+async function openJobDetail(jobId) {
+  openModal('jobDetailModal');
+  document.getElementById('jobDetailBody').innerHTML = '<div class="loading"><div class="spinner"></div> جاري التحميل...</div>';
+  document.getElementById('jobDetailFooter').innerHTML = '';
+
+  const { data: job, error } = await sb
+    .from('job_postings')
+    .select('*, hospitals(hospital_name, facility_type, city, address, description, avatar_url, phone)')
+    .eq('id', jobId)
+    .single();
+
+  if (error || !job) {
+    document.getElementById('jobDetailBody').innerHTML = '<div class="empty-state"><p>تعذّر تحميل بيانات الوظيفة</p></div>';
+    return;
+  }
+
+  const h = job.hospitals || {};
+  const benefits = job.benefits || [];
+  const initials = h.hospital_name?.substring(0, 2) || '🏥';
+  const hospitalAvatar = h.avatar_url
+    ? `<img src="${h.avatar_url}" style="width:52px;height:52px;border-radius:12px;object-fit:cover;border:2px solid var(--border)">`
+    : `<div class="hospital-avatar" style="width:52px;height:52px;font-size:18px">${initials}</div>`;
+
+  // Check if nurse already applied
+  var alreadyApplied = false;
+  if (currentUser) {
+    const { data: app } = await sb.from('applications').select('id').eq('job_id', jobId).eq('nurse_id', currentUser.id).maybeSingle();
+    alreadyApplied = !!app;
+  }
+
+  // Count accepted so far
+  const { data: accepted } = await sb.from('applications').select('id').eq('job_id', jobId).eq('status', 'accepted');
+  const acceptedCount = accepted?.length || 0;
+  const needed = job.nurses_needed || 1;
+  const remaining = Math.max(0, needed - acceptedCount);
+  const progressPct = Math.min(100, Math.round((acceptedCount / needed) * 100));
+
+  document.getElementById('jobDetailBody').innerHTML = `
+    <!-- Hospital Card -->
+    <div class="profile-hero" style="border-radius:var(--radius);margin-bottom:16px;padding:16px 20px">
+      <div style="display:flex;align-items:center;gap:14px">
+        ${hospitalAvatar}
+        <div>
+          <div style="font-size:17px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.2)">${h.hospital_name || 'منشأة طبية'}</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px">
+            ${h.facility_type ? `<span style="font-size:11px;background:var(--accent-light);color:var(--primary);padding:2px 8px;border-radius:20px;font-weight:700">${h.facility_type}</span>` : ''}
+            ${h.city ? `<span style="font-size:12px;color:var(--text-muted)"><i class="fas fa-map-marker-alt"></i> ${h.city}</span>` : ''}
+            ${h.phone ? `<span style="font-size:12px;color:var(--text-muted)"><i class="fas fa-phone"></i> ${h.phone}</span>` : ''}
+          </div>
+        </div>
+      </div>
+      ${h.description ? `<div style="margin-top:10px;font-size:13px;color:var(--text-muted);line-height:1.6;border-top:1px solid var(--border);padding-top:10px">${h.description}</div>` : ''}
+    </div>
+
+    <!-- Job Title & Badge -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:18px;font-weight:800;color:var(--text)">${job.title}</div>
+      ${job.shift_type ? `<div class="job-badge">${job.shift_type}</div>` : ''}
+    </div>
+
+    <!-- Meta -->
+    <div class="job-meta" style="margin-bottom:12px">
+      ${job.specialization ? `<div class="job-meta-item"><i class="fas fa-stethoscope"></i>${job.specialization}</div>` : ''}
+      ${job.city ? `<div class="job-meta-item"><i class="fas fa-map-marker-alt"></i>${job.city}</div>` : ''}
+    </div>
+
+    <!-- Progress bar -->
+    <div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:12px;font-weight:700;color:var(--text-muted)"><i class="fas fa-users"></i> الممرضون المطلوبون</span>
+        <span style="font-size:13px;font-weight:800;color:${remaining === 0 ? '#ef4444' : 'var(--accent)'}">
+          ${remaining === 0 ? 'اكتملت' : remaining + ' متبقي من ' + needed}
+        </span>
+      </div>
+      <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
+        <div style="width:${progressPct}%;height:100%;background:${progressPct >= 100 ? '#ef4444' : 'var(--accent)'};border-radius:4px;transition:width 0.4s"></div>
+      </div>
+    </div>
+
+    <!-- Salary -->
+    ${(job.salary_min || job.salary_max) ? `
+    <div class="salary-range" style="margin-bottom:12px">
+      <span class="salary-label">💰 الراتب</span>
+      <span class="salary-amount">${job.salary_min?.toLocaleString() || '?'} - ${job.salary_max?.toLocaleString() || '?'} جنيه</span>
+    </div>` : ''}
+
+    <!-- Description -->
+    ${job.description ? `
+    <div style="background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--text-muted);margin-bottom:6px"><i class="fas fa-info-circle"></i> وصف الوظيفة</div>
+      <div style="font-size:13px;line-height:1.7">${job.description}</div>
+    </div>` : ''}
+
+    <!-- Requirements -->
+    ${job.requirements ? `
+    <div style="background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--text-muted);margin-bottom:6px"><i class="fas fa-clipboard-list"></i> المتطلبات</div>
+      <div style="font-size:13px;line-height:1.7">${job.requirements}</div>
+    </div>` : ''}
+
+    <!-- Benefits -->
+    ${benefits.length ? `
+    <div style="margin-bottom:8px">
+      <div style="font-size:13px;font-weight:700;color:var(--text-muted);margin-bottom:8px"><i class="fas fa-gift"></i> المزايا</div>
+      <div class="benefits-list">${benefits.map(b => `<span class="benefit-tag">✓ ${b}</span>`).join('')}</div>
+    </div>` : ''}
+  `;
+
+  document.getElementById('jobDetailFooter').innerHTML = `
+    <div style="display:flex;gap:10px;width:100%;justify-content:center">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('jobDetailModal')">إغلاق</button>
+      <button class="btn ${alreadyApplied ? 'btn-ghost' : 'btn-primary'} btn-sm" style="flex:1;max-width:240px"
+        ${alreadyApplied || remaining === 0 ? 'disabled' : `onclick="closeModal('jobDetailModal');openApplyModal('${job.id}','${job.title.replace(/'/g,"\\'")}','${(h.hospital_name||'').replace(/'/g,"\\'")}')"`}>
+        ${alreadyApplied ? '<i class="fas fa-check"></i> سبق التقديم' : remaining === 0 ? 'اكتملت الوظيفة' : '<i class="fas fa-paper-plane"></i> تقدّم الآن'}
+      </button>
+    </div>
+  `;
+}
+
+// ========== EDIT JOB (Hospital View) ==========
+var editingJobId = null;
+
+function openEditJob(jobId, job) {
+  editingJobId = jobId;
+  document.getElementById('editJobTitle').value  = job.title        || '';
+  document.getElementById('editJobDesc').value   = job.description  || '';
+  document.getElementById('editJobSpec').value   = job.specialization|| '';
+  document.getElementById('editJobShift').value  = job.shift_type   || '';
+  document.getElementById('editJobSalMin').value = job.salary_min   || '';
+  document.getElementById('editJobSalMax').value = job.salary_max   || '';
+  document.getElementById('editJobNeeded').value = job.nurses_needed|| 1;
+  document.getElementById('editJobReqs').value   = job.requirements || '';
+  clearAlert('editJobAlert');
+  openModal('editJobModal');
+}
+
+async function saveEditJob(e) {
+  if (e) e.preventDefault();
+  var title  = document.getElementById('editJobTitle').value.trim();
+  var desc   = document.getElementById('editJobDesc').value.trim();
+  var salMin = parseInt(document.getElementById('editJobSalMin').value);
+  var salMax = parseInt(document.getElementById('editJobSalMax').value);
+  if (!title || !desc)           return showAlert('editJobAlert', 'عنوان الوظيفة والوصف مطلوبين', 'error');
+  if (!salMin || !salMax)        return showAlert('editJobAlert', 'الراتب مطلوب', 'error');
+  if (salMin > salMax)           return showAlert('editJobAlert', 'الحد الأدنى للراتب أكبر من الأعلى', 'error');
+
+  var { error } = await sb.from('job_postings').update({
+    title,
+    description: desc,
+    specialization: document.getElementById('editJobSpec').value  || null,
+    shift_type:     document.getElementById('editJobShift').value || null,
+    salary_min:     salMin,
+    salary_max:     salMax,
+    nurses_needed:  parseInt(document.getElementById('editJobNeeded').value) || 1,
+    requirements:   document.getElementById('editJobReqs').value  || null,
+  }).eq('id', editingJobId);
+
+  if (error) return showAlert('editJobAlert', 'حصل خطأ: ' + error.message, 'error');
+
+  editingJobId = null;
+  closeModal('editJobModal');
+  await loadHospitalJobs();
+  loadHospitalStats();
+  // show toast
+  var t = document.createElement('div');
+  t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--accent);color:white;padding:10px 22px;border-radius:100px;font-weight:700;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,184,148,0.4)';
+  t.innerHTML = '<i class="fas fa-check-circle"></i> تم حفظ التعديلات';
+  document.body.appendChild(t);
+  setTimeout(function() { t.remove(); }, 2500);
+}
+
+// Load job then open edit modal
+async function loadAndEditJob(jobId) {
+  var { data: job, error } = await sb.from('job_postings').select('*').eq('id', jobId).single();
+  if (error || !job) { alert('تعذّر تحميل بيانات الوظيفة'); return; }
+  openEditJob(jobId, job);
 }
