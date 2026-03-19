@@ -448,14 +448,24 @@ function setRole(role) {
 
 function switchTab(dashboard, tab, btn) {
   const prefix = dashboard + '-tab-';
-  document.querySelectorAll(`#page-${dashboard} .tab-btn`).forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.querySelectorAll(`[id^="${prefix}"]`).forEach(el => el.classList.add('hidden'));
-  document.getElementById(prefix + tab).classList.remove('hidden');
+  document.querySelectorAll('#page-' + dashboard + ' .tab-btn').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  else {
+    // Find and activate the matching tab button
+    var btns = document.querySelectorAll('#page-' + dashboard + ' .tab-btn');
+    btns.forEach(function(b) {
+      if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + tab + "'")) b.classList.add('active');
+    });
+  }
+  document.querySelectorAll('[id^="' + prefix + '"]').forEach(function(el) { el.classList.add('hidden'); });
+  var tabEl = document.getElementById(prefix + tab);
+  if (tabEl) tabEl.classList.remove('hidden');
 
-  if (dashboard === 'nurse' && tab === 'myapps') loadMyApplications();
+  if (dashboard === 'nurse' && tab === 'myapps') { _currentAppsFilter = 'all'; filterMyApps('all'); loadMyApplications(); }
+  if (dashboard === 'nurse' && tab === 'interviews') loadNurseInterviews();
   if (dashboard === 'hospital' && tab === 'applications') loadHospitalApplications();
   if (dashboard === 'hospital' && tab === 'completed') loadCompletedJobs();
+  if (dashboard === 'hospital' && tab === 'interviews') loadHospitalInterviews();
 }
 
 // ========== ALERTS ==========
@@ -538,6 +548,9 @@ async function handleRegister(e) {
       years_experience: parseInt(document.getElementById('nurseExp').value) || 0,
       bio: document.getElementById('nurseBio').value,
       specializations: getSelectedSpecs(),
+      gender: document.getElementById('nurseGender').value || null,
+      marital_status: document.getElementById('nurseMarital').value || null,
+      birth_year: parseInt(document.getElementById('nurseBirthYear').value) || null,
     };
   } else {
     pendingData = {
@@ -572,6 +585,24 @@ async function handleRegister(e) {
         }
       } catch(avErr) { console.warn('Avatar upload failed:', avErr); }
     }
+    // Upload certificate images during registration
+    if (selectedRole === 'nurse' && certImageFiles.some(function(f){ return f !== null; })) {
+      var certUrls = [];
+      var certFiles = certImageFiles.filter(function(f){ return f !== null; });
+      for (var ci = 0; ci < certFiles.length; ci++) {
+        try {
+          var cf = certFiles[ci];
+          var cPath = userId + '/cert_' + Date.now() + '_' + ci + '.' + (cf.name.split('.').pop() || 'jpg');
+          var cUp = await sb.storage.from('certificates').upload(cPath, cf, { upsert: true });
+          if (!cUp.error) {
+            var cPub = sb.storage.from('certificates').getPublicUrl(cPath);
+            certUrls.push(cPub.data.publicUrl);
+          }
+        } catch(ce) { console.warn('Cert upload error:', ce); }
+      }
+      if (certUrls.length) pendingData.certificates_urls = certUrls;
+    }
+
     delete pendingData.avatarFile; // can't serialize File to localStorage
     localStorage.setItem('shift_pending_reg', JSON.stringify(pendingData));
 
@@ -745,6 +776,10 @@ async function loadJobs() {
   }
 
   document.getElementById('jobsList').innerHTML = `<div class="jobs-grid">${jobs.map(job => renderJobCard(job, appliedIds, acceptedMap)).join('')}</div>`;
+  // Load notifications and subscribe
+  loadNotifications();
+  subscribeToNotifications();
+
 }
 
 
@@ -811,6 +846,9 @@ async function loadNurseStats() {
 }
 
 // ========== NURSE - MY APPLICATIONS ==========
+var _allMyApps = [];
+var _currentAppsFilter = 'all';
+
 async function loadMyApplications() {
   document.getElementById('myApplicationsList').innerHTML = '<div class="loading"><div class="spinner"></div> جاري التحميل...</div>';
 
@@ -819,20 +857,65 @@ async function loadMyApplications() {
     .eq('nurse_id', currentUser.id)
     .order('created_at', { ascending: false });
 
-  if (!apps?.length) {
+  _allMyApps = apps || [];
+  renderMyApps(_currentAppsFilter);
+  updateAppTabCounts();
+}
+
+function updateAppTabCounts() {
+  var counts = { all: _allMyApps.length, pending: 0, accepted: 0, rejected: 0 };
+  _allMyApps.forEach(function(a) {
+    if (a.status === 'pending' || a.status === 'reviewed') counts.pending++;
+    else if (a.status === 'accepted') counts.accepted++;
+    else if (a.status === 'rejected') counts.rejected++;
+  });
+  var labels = {
+    all:      'الكل' + (counts.all      ? ' (' + counts.all      + ')' : ''),
+    pending:  'قيد المراجعة' + (counts.pending  ? ' (' + counts.pending  + ')' : ''),
+    accepted: 'مقبول ✅' + (counts.accepted ? ' (' + counts.accepted + ')' : ''),
+    rejected: 'مرفوض ❌' + (counts.rejected ? ' (' + counts.rejected + ')' : ''),
+  };
+  Object.keys(labels).forEach(function(k) {
+    var btn = document.getElementById('appsTab_' + k);
+    if (btn) btn.textContent = labels[k];
+  });
+}
+
+function filterMyApps(status) {
+  _currentAppsFilter = status;
+  // Update active tab
+  ['all','pending','accepted','rejected'].forEach(function(k) {
+    var btn = document.getElementById('appsTab_' + k);
+    if (btn) btn.classList.toggle('apps-tab-active', k === status);
+  });
+  renderMyApps(status);
+}
+
+function renderMyApps(filter) {
+  var apps = _allMyApps;
+  if (filter === 'pending')  apps = apps.filter(function(a){ return a.status === 'pending' || a.status === 'reviewed'; });
+  if (filter === 'accepted') apps = apps.filter(function(a){ return a.status === 'accepted'; });
+  if (filter === 'rejected') apps = apps.filter(function(a){ return a.status === 'rejected'; });
+
+  if (!apps.length) {
+    var emptyMsg = {
+      all:      'مفيش طلبات لسه — ابدأ بالتقديم على الوظائف المناسبة ليك',
+      pending:  'مفيش طلبات قيد المراجعة',
+      accepted: 'مفيش طلبات مقبولة لسه',
+      rejected: 'مفيش طلبات مرفوضة',
+    };
     document.getElementById('myApplicationsList').innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">📋</div>
-        <h3>مفيش طلبات لسه</h3>
-        <p>ابدأ بالتقديم على الوظائف المناسبة ليك</p>
+        <p style="color:var(--text-muted)">${emptyMsg[filter] || emptyMsg.all}</p>
       </div>`;
     return;
   }
 
-  const statusMap = { pending: 'قيد المراجعة', reviewed: 'تمت المراجعة', accepted: 'تم القبول', rejected: 'مرفوض' };
-  const statusClass = { pending: 'status-pending', reviewed: 'status-reviewed', accepted: 'status-accepted', rejected: 'status-rejected' };
+  const statusMap   = { pending: 'قيد المراجعة', reviewed: 'قيد المراجعة', accepted: 'مقبول', rejected: 'مرفوض' };
+  const statusClass = { pending: 'status-pending', reviewed: 'status-pending', accepted: 'status-accepted', rejected: 'status-rejected' };
 
-  document.getElementById('myApplicationsList').innerHTML = apps.map(app => `
+  document.getElementById('myApplicationsList').innerHTML = apps.map(function(app) { return `
     <div class="application-item">
       ${(app.job_postings?.hospitals?.avatar_url)
         ? `<img src="${app.job_postings.hospitals.avatar_url}" style="width:46px;height:46px;border-radius:12px;object-fit:cover;border:2px solid var(--border);flex-shrink:0">`
@@ -850,7 +933,7 @@ async function loadMyApplications() {
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-        <div class="status-badge ${statusClass[app.status]}">${statusMap[app.status]}</div>
+        <div class="status-badge ${statusClass[app.status] || 'status-pending'}">${statusMap[app.status] || app.status}</div>
         ${(app.status === 'pending' || app.status === 'reviewed') ? `
         <button onclick="withdrawApplication('${app.id}')" title="سحب الطلب"
           style="background:none;border:1.5px solid #ef4444;color:#ef4444;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:600;transition:all 0.2s"
@@ -859,7 +942,7 @@ async function loadMyApplications() {
         </button>` : ''}
       </div>
     </div>
-  `).join('');
+  `; }).join('');
 }
 
 
@@ -1039,7 +1122,7 @@ async function loadHospitalApplications() {
 
   const jobIds = jobs.map(j => j.id);
   const { data: apps } = await sb.from('applications')
-    .select(`*, nurses(full_name, city, years_experience, specializations, bio, phone, certificates_urls, avatar_url)`)
+    .select(`*, nurses(full_name, city, years_experience, specializations, bio, phone, certificates_urls, avatar_url), job_postings(title, city, shift_type)`)
     .in('job_id', jobIds)
     .order('created_at', { ascending: false });
 
@@ -1117,10 +1200,20 @@ async function loadHospitalApplications() {
   document.getElementById('hospitalApplicationsList').innerHTML = html;
 }
 
-function viewApplicant(appId) {
-  const app = window._apps?.find(a => a.id === appId);
-  if (!app) return;
+async function viewApplicant(appId) {
+  let app = window._apps?.find(a => a.id === appId);
+  // Fallback: fetch directly if not in cache
+  if (!app) {
+    const { data } = await sb.from('applications')
+      .select('*, nurses(full_name, city, years_experience, specializations, bio, phone, certificates_urls, avatar_url), job_postings(title, city, shift_type)')
+      .eq('id', appId).single();
+    if (!data) { alert('تعذر تحميل بيانات الطلب'); return; }
+    app = data;
+    if (!window._apps) window._apps = [];
+    window._apps.push(app);
+  }
   const nurse = app.nurses;
+  const job   = app.job_postings;
 
   const certUrls = (nurse && nurse.certificates_urls && nurse.certificates_urls.length)
     ? nurse.certificates_urls : [];
@@ -1196,15 +1289,19 @@ function viewApplicant(appId) {
 
 
   document.getElementById('appDetailFooter').innerHTML = `
-    <div style="display:flex;justify-content:center;gap:10px;width:100%">
+    <div style="display:flex;justify-content:center;gap:8px;width:100%;flex-wrap:wrap">
       <button class="btn btn-danger btn-sm" onclick="updateAppStatus('${app.id}', 'rejected')">
         <i class="fas fa-times"></i> رفض
       </button>
       <button class="btn btn-outline btn-sm" onclick="updateAppStatus('${app.id}', 'reviewed')">
-        <i class="fas fa-eye"></i> تمت المراجعة
+        <i class="fas fa-eye"></i> مراجعة
       </button>
       <button class="btn btn-primary btn-sm" onclick="updateAppStatus('${app.id}', 'accepted')">
         <i class="fas fa-check"></i> قبول
+      </button>
+      <button class="btn btn-sm" style="background:#8b5cf6;color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600"
+        onclick="openInterviewModal('${app.id}','${app.nurse_id}','${app.job_id}','${nurse ? (nurse.full_name||'ممرض') : 'ممرض'}','${job ? (job.title||'وظيفة') : 'وظيفة'}')">
+        <i class="fas fa-calendar-plus"></i> مقابلة
       </button>
     </div>`;
 
@@ -1219,11 +1316,38 @@ async function viewJobApplications(jobId, jobTitle) {
 }
 
 async function updateAppStatus(appId, status) {
-  await sb.from('applications').update({ status, updated_at: new Date() }).eq('id', appId);
+  await sb.from('applications').update({ status: status }).eq('id', appId);
   closeModal('appDetailModal');
 
+  // Send notification to nurse
+  if (status === 'accepted' || status === 'rejected') {
+    try {
+      var { data: appData } = await sb.from('applications')
+        .select('nurse_id, job_postings(title)')
+        .eq('id', appId).single();
+      if (appData) {
+        var jobTitle = appData.job_postings ? appData.job_postings.title : 'الوظيفة';
+        var hospitalName = currentProfile ? (currentProfile.hospital_name || 'المنشأة') : 'المنشأة';
+        var dateStr = new Date().toLocaleDateString('ar-EG', { year:'numeric', month:'long', day:'numeric' });
+        if (status === 'accepted') {
+          await sendNotification(appData.nurse_id, 'app_accepted',
+            '🎉 تم قبول طلبك!',
+            hospitalName + ' قبلت طلبك على وظيفة "' + jobTitle + '" — ' + dateStr,
+            { app_id: appId }
+          );
+        } else {
+          await sendNotification(appData.nurse_id, 'app_rejected',
+            'طلبك على "' + jobTitle + '"',
+            hospitalName + ' أبلغتك بأن طلبك لم يتم قبوله هذه المرة — ' + dateStr,
+            { app_id: appId }
+          );
+        }
+      }
+    } catch(e) { console.warn('notification error:', e); }
+  }
+
   // Check if job is now completed (accepted count >= nurses_needed)
-  const app = window._apps?.find(function(a) { return a.id === appId; });
+  var app = window._apps && window._apps.find(function(a) { return a.id === appId; });
   if (app && status === 'accepted') {
     await checkAndCompleteJob(app.job_id);
   }
@@ -1337,12 +1461,12 @@ async function handleApply() {
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px"></div>';
 
-  const { error } = await sb.from('applications').insert({
+  const { data: newApp, error } = await sb.from('applications').insert({
     job_id: selectedJobId,
     nurse_id: currentUser.id,
     cover_note: document.getElementById('coverNote').value || null,
     status: 'pending',
-  });
+  }).select('*, job_postings(title, hospital_id)').single();
 
   btn.disabled = false;
   btn.innerHTML = '<i class="fas fa-paper-plane"></i> أرسل الطلب';
@@ -1350,6 +1474,22 @@ async function handleApply() {
   if (error) {
     if (error.code === '23505') return showAlert('applyModalAlert', 'لقد تقدمت على هذه الوظيفة من قبل', 'error');
     return showAlert('applyModalAlert', 'حصل خطأ، حاول تاني');
+  }
+
+  // Notify hospital
+  if (newApp && newApp.job_postings) {
+    var nurseName = currentProfile ? (currentProfile.full_name || 'ممرض') : 'ممرض';
+    var jobTitle  = newApp.job_postings.title || 'وظيفة';
+    var hospitalId = newApp.job_postings.hospital_id;
+    var timeStr = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    var dateStr = new Date().toLocaleDateString('ar-EG');
+    await sendNotification(
+      hospitalId,
+      'new_application',
+      'طلب تقديم جديد 👤',
+      nurseName + ' قدّم على وظيفة "' + jobTitle + '" — ' + dateStr + ' ' + timeStr,
+      { app_id: newApp.id, nurse_id: currentUser.id, job_id: selectedJobId }
+    );
   }
 
   closeModal('applyModal');
@@ -1366,6 +1506,9 @@ function showProfileModal() {
   document.getElementById('editNurseCity').value = currentProfile.city || '';
   document.getElementById('editNurseExp').value = currentProfile.years_experience || '';
   document.getElementById('editNurseBio').value = currentProfile.bio || '';
+  document.getElementById('editNurseGender').value   = currentProfile.gender         || '';
+  document.getElementById('editNurseMarital').value  = currentProfile.marital_status || '';
+  document.getElementById('editNurseBirthYear').value = currentProfile.birth_year    || '';
   setEditSpecsFromArray(currentProfile.specializations || []);
   editCertFiles = [];
   newAvatarFile = null;
@@ -1426,6 +1569,9 @@ async function handleUpdateProfile(e) {
       specializations: getEditSelectedSpecs(),
       certificates_urls: allCertUrls,
       avatar_url: avatarUrl,
+      gender:         document.getElementById('editNurseGender').value   || null,
+      marital_status: document.getElementById('editNurseMarital').value  || null,
+      birth_year:     parseInt(document.getElementById('editNurseBirthYear').value) || null,
       updated_at: new Date().toISOString(),
     };
 
@@ -1648,10 +1794,29 @@ async function completePendingRegistration(userId, pending) {
     });
     if (error) throw error;
 
-    // Save avatar_url if present
-    if (pending.avatar_url) {
+    // Save extra fields after RPC
+    var nurseUpdate = {};
+    if (pending.avatar_url) nurseUpdate.avatar_url = pending.avatar_url;
+    if (pending.certificates_urls && pending.certificates_urls.length) nurseUpdate.certificates_urls = pending.certificates_urls;
+    if (pending.role === 'nurse') {
+      if (pending.gender)         nurseUpdate.gender         = pending.gender;
+      if (pending.marital_status) nurseUpdate.marital_status = pending.marital_status;
+      if (pending.birth_year)     nurseUpdate.birth_year     = pending.birth_year;
+      // Ensure city, phone, name are saved (RPC might race with email confirmation)
+      if (pending.city)           nurseUpdate.city           = pending.city;
+      if (pending.phone)          nurseUpdate.phone          = pending.phone;
+      if (pending.full_name)      nurseUpdate.full_name      = pending.full_name;
+      if (pending.bio)            nurseUpdate.bio            = pending.bio;
+      if (pending.years_experience) nurseUpdate.years_experience = pending.years_experience;
+      if (pending.specializations && pending.specializations.length) nurseUpdate.specializations = pending.specializations;
+    } else if (pending.role === 'hospital') {
+      if (pending.city)           nurseUpdate.city           = pending.city;
+      if (pending.phone)          nurseUpdate.phone          = pending.phone;
+    }
+    if (Object.keys(nurseUpdate).length) {
       var table = pending.role === 'nurse' ? 'nurses' : 'hospitals';
-      await sb.from(table).update({ avatar_url: pending.avatar_url }).eq('id', userId);
+      var { error: upErr } = await sb.from(table).update(nurseUpdate).eq('id', userId);
+      if (upErr) console.warn('profile update warning:', upErr.message);
     }
     console.log('Profile created via RPC OK');
   } catch(e) {
@@ -1767,6 +1932,50 @@ async function translateCvData(p) {
 // ========== CV GENERATOR (HTML → Print/Save as PDF) ==========
 var selectedCvType = null;
 
+
+async function resetCvData() {
+  if (!confirm('هتتمسح بيانات الـ CV (التعليم + الخبرة). متأكد؟')) return;
+
+  // Delete work experiences
+  await sb.from('work_experiences').delete().eq('nurse_id', currentUser.id);
+
+  // Reset cv_extra_filled + education fields
+  await sb.from('nurses').update({
+    cv_extra_filled: false,
+    education_degree: null,
+    education_institution: null,
+    education_year: null,
+    linkedin_url: null,
+  }).eq('id', currentUser.id);
+
+  // Update local profile
+  if (currentProfile) {
+    currentProfile.cv_extra_filled = false;
+    currentProfile.education_degree = null;
+    currentProfile.education_institution = null;
+    currentProfile.education_year = null;
+    currentProfile.linkedin_url = null;
+  }
+
+  // Clear the modal fields if open
+  var fields = ['cvEduDegree','cvEduInstitution','cvEduYear','cvLinkedin'];
+  fields.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+  var list = document.getElementById('workExpList');
+  if (list) list.innerHTML = '';
+
+  closeModal('cvModal');
+  showToast('✅ تم مسح بيانات الـ CV — يمكنك إدخال بيانات جديدة');
+}
+
+
+function showToast(msg) {
+  var t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#0a3d62;color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2);transition:opacity 0.4s';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function(){ t.style.opacity='0'; setTimeout(function(){ t.remove(); }, 400); }, 3000);
+}
+
 function openCvFlow() {
   if (!currentProfile) return;
   selectedCvType = null;
@@ -1792,30 +2001,66 @@ var workExpCounter = 0;
 
 function addWorkExpRow() {
   workExpCounter++;
-  var n = workExpCounter;
   var list = document.getElementById('workExpList');
   var row = document.createElement('div');
-  row.id = 'wexp_' + n;
   row.style.cssText = 'background:var(--bg);border-radius:10px;padding:12px 14px;border:1px solid var(--border);position:relative';
+
+  var thisYear = new Date().getFullYear();
+  var yearOpts = '';
+  for (var y = thisYear; y >= thisYear - 40; y--) {
+    yearOpts += '<option value="' + y + '">' + y + '</option>';
+  }
+  var yearOptsEnd = '<option value="present" selected>حتى الآن</option>' + yearOpts;
+
   row.innerHTML =
-    '<button type="button" onclick="this.parentElement.remove()" ' +
-    'style="position:absolute;top:8px;left:10px;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;line-height:1" ' +
-    'title="\u062d\u0630\u0641">\u2715</button>' +
+    '<button type="button" onclick="this.parentElement.remove();calcTotalExp()" ' +
+    'style="position:absolute;top:8px;left:10px;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px" ' +
+    'title="حذف">✕</button>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">' +
     '  <div class="form-group" style="margin:0">' +
-    '    <label style="font-size:12px">\u0627\u0633\u0645 \u0627\u0644\u0645\u0643\u0627\u0646 <span style="color:#ef4444">*</span></label>' +
-    '    <input type="text" name="workplace" placeholder="\u0645\u062b\u0627\u0644: \u0645\u0633\u062a\u0634\u0641\u0649 \u0627\u0644\u0645\u0646\u064a\u0627 \u0627\u0644\u062c\u0627\u0645\u0639\u064a" style="font-size:13px;padding:8px 10px" />' +
+    '    <label style="font-size:12px">اسم المكان <span style="color:#ef4444">*</span></label>' +
+    '    <input type="text" name="workplace" placeholder="مثال: مستشفى المنيا الجامعي" style="font-size:13px;padding:8px 10px" />' +
     '  </div>' +
     '  <div class="form-group" style="margin:0">' +
-    '    <label style="font-size:12px">\u0627\u0644\u0645\u0633\u0645\u0649 \u0627\u0644\u0648\u0638\u064a\u0641\u064a</label>' +
+    '    <label style="font-size:12px">المسمى الوظيفي</label>' +
     '    <input type="text" name="jobtitle" placeholder="Registered Nurse" style="font-size:13px;padding:8px 10px" />' +
     '  </div>' +
     '</div>' +
-    '<div class="form-group" style="margin:0">' +
-    '  <label style="font-size:12px">\u0639\u062f\u062f \u0633\u0646\u0648\u0627\u062a \u0627\u0644\u0639\u0645\u0644 <span style="color:#ef4444">*</span></label>' +
-    '  <input type="number" name="years" placeholder="2" min="0.5" max="40" step="0.5" style="font-size:13px;padding:8px 10px;width:120px" />' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+    '  <div class="form-group" style="margin:0">' +
+    '    <label style="font-size:12px">سنة البداية <span style="color:#ef4444">*</span></label>' +
+    '    <select name="start_year" onchange="calcTotalExp()" style="font-size:13px;padding:8px 10px;width:100%;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--text)">' +
+    yearOpts +
+    '    </select>' +
+    '  </div>' +
+    '  <div class="form-group" style="margin:0">' +
+    '    <label style="font-size:12px">سنة الانتهاء <span style="color:#ef4444">*</span></label>' +
+    '    <select name="end_year" onchange="calcTotalExp()" style="font-size:13px;padding:8px 10px;width:100%;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--text)">' +
+    yearOptsEnd +
+    '    </select>' +
+    '  </div>' +
     '</div>';
+
   list.appendChild(row);
+  calcTotalExp();
+}
+
+function calcTotalExp() {
+  var rows = document.querySelectorAll('#workExpList > div');
+  var total = 0;
+  rows.forEach(function(row) {
+    var startSel = row.querySelector('[name="start_year"]');
+    var endSel   = row.querySelector('[name="end_year"]');
+    if (!startSel || !endSel) return;
+    var startY = parseInt(startSel.value) || 0;
+    var endY   = endSel.value === 'present' ? new Date().getFullYear() : (parseInt(endSel.value) || 0);
+    if (startY && endY >= startY) total += (endY - startY);
+  });
+  var badge = document.getElementById('totalExpBadge');
+  if (badge) {
+    badge.textContent = total > 0 ? 'إجمالي سنوات الخبرة: ' + total + ' سنة' : '';
+    badge.style.display = total > 0 ? 'block' : 'none';
+  }
 }
 
 
@@ -1830,15 +2075,28 @@ async function saveCvExtra() {
     return;
   }
 
-  // Collect work experience rows
+  // Collect work experience rows (start/end year)
   var workRows = document.querySelectorAll('#workExpList > div');
   var workExps = [];
+  var thisYear = new Date().getFullYear();
   for (var i = 0; i < workRows.length; i++) {
-    var workplace = workRows[i].querySelector('[name="workplace"]').value.trim();
-    var jobtitle  = workRows[i].querySelector('[name="jobtitle"]').value.trim() || 'Registered Nurse';
-    var years     = parseFloat(workRows[i].querySelector('[name="years"]').value) || 0;
-    if (workplace && years > 0) {
-      workExps.push({ nurse_id: currentUser.id, workplace_name: workplace, job_title: jobtitle, years_worked: years });
+    var workplace  = workRows[i].querySelector('[name="workplace"]').value.trim();
+    var jobtitle   = (workRows[i].querySelector('[name="jobtitle"]').value || '').trim() || 'Registered Nurse';
+    var startYStr  = workRows[i].querySelector('[name="start_year"]').value;
+    var endYStr    = workRows[i].querySelector('[name="end_year"]').value;
+    var startY     = parseInt(startYStr) || 0;
+    var endY       = endYStr === 'present' ? thisYear : (parseInt(endYStr) || 0);
+    var years      = endY > startY ? endY - startY : 0;
+    if (workplace && startY) {
+      var endDateStr = endYStr === 'present' ? null : (endY + '-01-01');
+      workExps.push({
+        nurse_id: currentUser.id,
+        workplace_name: workplace,
+        job_title: jobtitle,
+        years_worked: years,
+        start_date: startY + '-01-01',
+        end_date: endDateStr,
+      });
     }
   }
 
@@ -1996,23 +2254,30 @@ function printCV(p, email, type, avatarBase64) {
 
   // Build work experience HTML blocks
   var workExpHtml = '';
+  function weDate(we) {
+    var sy = we.start_date ? we.start_date.substring(0,4) : (new Date().getFullYear() - (we.years_worked||0));
+    var ey = we.end_date   ? we.end_date.substring(0,4)   : 'Present';
+    return sy + ' – ' + ey;
+  }
+  function weDateNdash(we) {
+    var sy = we.start_date ? we.start_date.substring(0,4) : (new Date().getFullYear() - (we.years_worked||0));
+    var ey = we.end_date   ? we.end_date.substring(0,4)   : 'Present';
+    return sy + ' &ndash; ' + ey;
+  }
+
   if (workExps.length > 0) {
     workExpHtml = workExps.map(function(we) {
-      var yr = we.years_worked;
-      var endYear = new Date().getFullYear();
-      var startYear = Math.round(endYear - yr);
       return [
         '<div style="margin-bottom:10px">',
         '<div class="job-header">',
         '<span class="job-title">' + (we.job_title || 'Registered Nurse') + '</span>',
-        '<span class="job-date">' + startYear + ' – ' + endYear + '</span>',
+        '<span class="job-date">' + weDate(we) + '</span>',
         '</div>',
         '<div class="job-company">' + we.workplace_name + '</div>',
         '</div>',
       ].join('');
     }).join('');
   } else {
-    // fallback generic
     workExpHtml = [
       '<div class="job-header"><span class="job-title">Registered Nurse</span><span class="job-date">' + expFrom + ' – Present</span></div>',
       '<div class="job-company">' + (city ? 'Clinical Facility, ' + city : 'Clinical Practice') + '</div>',
@@ -2023,12 +2288,9 @@ function printCV(p, email, type, avatarBase64) {
   var workExpVisHtml = '';
   if (workExps.length > 0) {
     workExpVisHtml = workExps.map(function(we) {
-      var yr = we.years_worked;
-      var endYear = new Date().getFullYear();
-      var startYear = Math.round(endYear - yr);
       return [
         '<div class="exp-row"><span class="exp-jobtitle">' + (we.job_title || 'Registered Nurse') + '</span>',
-        '<span class="exp-date">' + startYear + ' &ndash; ' + endYear + '</span></div>',
+        '<span class="exp-date">' + weDateNdash(we) + '</span></div>',
         '<div class="exp-company">' + we.workplace_name + '</div>',
       ].join('');
     }).join('<div style="margin-bottom:8px"></div>');
@@ -2402,3 +2664,408 @@ async function loadAndEditJob(jobId) {
   if (error || !job) { alert('تعذّر تحميل بيانات الوظيفة'); return; }
   openEditJob(jobId, job);
 }
+
+// ========== NOTIFICATIONS ==========
+
+var _notifChannel = null;
+
+async function loadNotifications() {
+  if (!currentUser) return;
+  var { data, error } = await sb.from('notifications')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) return;
+  renderNotifList(data || []);
+  updateNotifBadge(data || []);
+}
+
+function renderNotifList(notifs) {
+  var list = document.getElementById('notifList');
+  if (!list) return;
+
+  if (!notifs.length) {
+    list.innerHTML = '<div style="padding:28px 16px;text-align:center;color:var(--text-muted);font-size:13px"><i class="fas fa-bell-slash" style="font-size:24px;display:block;margin-bottom:8px;opacity:0.4"></i>مفيش إشعارات</div>';
+    return;
+  }
+
+  var typeIcon = {
+    new_application:     'fa-user-nurse',
+    app_accepted:        'fa-check-circle',
+    app_rejected:        'fa-times-circle',
+    interview_scheduled: 'fa-calendar-check',
+  };
+  var typeColor = {
+    new_application:     '#0a3d62',
+    app_accepted:        '#00b894',
+    app_rejected:        '#ef4444',
+    interview_scheduled: '#8b5cf6',
+  };
+
+  // Store notifs in a map for click handler
+  window._notifMap = {};
+  notifs.forEach(function(n) { window._notifMap[n.id] = n; });
+
+  list.innerHTML = notifs.map(function(n) {
+    var icon     = typeIcon[n.type]  || 'fa-bell';
+    var color    = typeColor[n.type] || 'var(--primary)';
+    var timeAgo  = formatTimeAgo(n.created_at);
+    var bgStyle  = n.is_read ? '' : 'background:var(--accent-light)';
+    var fontW    = n.is_read ? '500' : '700';
+    return '<div class="notif-item" data-id="' + n.id + '" style="display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;' + bgStyle + '">' +
+      '<div style="width:36px;height:36px;border-radius:50%;background:' + color + '22;color:' + color + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px">' +
+        '<i class="fas ' + icon + '" style="font-size:14px"></i>' +
+      '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;font-weight:' + fontW + ';color:var(--text);margin-bottom:2px">' + n.title + '</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);line-height:1.4;word-break:break-word">' + n.body + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">' + timeAgo + '</div>' +
+      '</div>' +
+      (n.is_read ? '' : '<div style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0;margin-top:8px"></div>') +
+    '</div>';
+  }).join('');
+
+  // Attach click handlers via JS (not inline onclick - avoids quote issues)
+  list.querySelectorAll('.notif-item').forEach(function(el) {
+    el.addEventListener('mouseover',  function() { if (!window._notifMap[el.dataset.id]?.is_read) el.style.background = 'var(--bg)'; });
+    el.addEventListener('mouseout',   function() { el.style.background = window._notifMap[el.dataset.id]?.is_read ? '' : 'var(--accent-light)'; });
+    el.addEventListener('click', function() {
+      var n = window._notifMap[el.dataset.id];
+      if (!n) return;
+      var ld = n.link_data || {};
+      if      (n.type === 'new_application')     onNotifClick(n.id, 'hospital_app', ld.nurse_id||'', ld.app_id||'');
+      else if (n.type === 'app_accepted')        onNotifClick(n.id, 'app_accepted', '', ld.app_id||'');
+      else if (n.type === 'app_rejected')        onNotifClick(n.id, 'app_rejected', '', ld.app_id||'');
+      else if (n.type === 'interview_scheduled') onNotifClick(n.id, 'interview_scheduled', '', '');
+      else                                       markNotifRead(n.id);
+    });
+  });
+}
+
+function updateNotifBadge(notifs) {
+  var badge = document.getElementById('notifBadge');
+  if (!badge) return;
+  var unread = notifs.filter(function(n){ return !n.is_read; }).length;
+  if (unread > 0) {
+    badge.style.display = 'block';
+    badge.textContent = unread > 9 ? '9+' : unread;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function toggleNotifPanel() {
+  var panel = document.getElementById('notifPanel');
+  if (!panel) return;
+  var isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) loadNotifications();
+  // Close on outside click
+  if (!isOpen) {
+    setTimeout(function() {
+      document.addEventListener('click', function closePanel(e) {
+        if (!document.getElementById('notifBell').contains(e.target) &&
+            !document.getElementById('notifPanel').contains(e.target)) {
+          document.getElementById('notifPanel').style.display = 'none';
+          document.removeEventListener('click', closePanel);
+        }
+      });
+    }, 50);
+  }
+}
+
+async function markNotifRead(id) {
+  await sb.from('notifications').update({ is_read: true }).eq('id', id);
+  loadNotifications();
+}
+
+async function markAllNotifsRead() {
+  if (!currentUser) return;
+  await sb.from('notifications').update({ is_read: true })
+    .eq('user_id', currentUser.id).eq('is_read', false);
+  loadNotifications();
+}
+
+async function clearAllNotifs() {
+  if (!currentUser) return;
+  if (!confirm('مسح كل الإشعارات؟')) return;
+  await sb.from('notifications').delete().eq('user_id', currentUser.id);
+  loadNotifications();
+}
+
+async function onNotifClick(notifId, type, nurseId, appId) {
+  await markNotifRead(notifId);
+  document.getElementById('notifPanel').style.display = 'none';
+
+  if (type === 'hospital_app') {
+    // Switch to hospital applications tab
+    var appsBtn = document.querySelector('#page-hospital .tab-btn:nth-child(2)');
+    if (appsBtn) switchTab('hospital', 'applications', appsBtn);
+    // Wait for apps to load then open the specific application
+    setTimeout(async function() {
+      await loadHospitalApplications();
+      setTimeout(function() {
+        if (appId) viewApplicant(appId);
+      }, 300);
+    }, 200);
+
+  } else if (type === 'app_accepted' || type === 'app_rejected' || type === 'nurse_app') {
+    switchTab('nurse', 'myapps');
+
+  } else if (type === 'interview_scheduled' || type === 'interview') {
+    switchTab('nurse', 'interviews');
+  }
+}
+
+function formatTimeAgo(isoStr) {
+  var diff = (Date.now() - new Date(isoStr).getTime()) / 1000;
+  if (diff < 60)   return 'الآن';
+  if (diff < 3600) return Math.floor(diff/60) + ' دقيقة';
+  if (diff < 86400) return Math.floor(diff/3600) + ' ساعة';
+  return Math.floor(diff/86400) + ' يوم';
+}
+
+// Subscribe to realtime notifications
+function subscribeToNotifications() {
+  if (!currentUser || _notifChannel) return;
+  _notifChannel = sb.channel('notifs_' + currentUser.id)
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'notifications',
+      filter: 'user_id=eq.' + currentUser.id
+    }, function(payload) {
+      loadNotifications();
+      // Show brief toast
+      if (payload.new) showToast('🔔 ' + payload.new.title);
+    })
+    .subscribe();
+}
+
+// Send notification helper
+async function sendNotification(userId, type, title, body, linkData) {
+  await sb.from('notifications').insert({
+    user_id: userId, type: type, title: title, body: body,
+    link_data: linkData || {}
+  });
+}
+
+// ========== INTERVIEWS ==========
+
+var _currentInterviewAppId  = null;
+var _currentInterviewNurseId = null;
+var _currentInterviewJobId   = null;
+var _currentInterviewNurseName = '';
+var _currentInterviewJobTitle  = '';
+
+function openInterviewModal(appId, nurseId, jobId, nurseName, jobTitle) {
+  _currentInterviewAppId   = appId;
+  _currentInterviewNurseId = nurseId;
+  _currentInterviewJobId   = jobId;
+  _currentInterviewNurseName = nurseName;
+  _currentInterviewJobTitle  = jobTitle;
+
+  // Set min date to today
+  var today = new Date().toISOString().split('T')[0];
+  document.getElementById('interviewDate').min = today;
+  document.getElementById('interviewDate').value = '';
+  document.getElementById('interviewTime').value = '';
+  document.getElementById('interviewNotes').value = '';
+
+  document.getElementById('interviewAppInfo').innerHTML =
+    '<div style="display:flex;gap:10px;align-items:center">' +
+    '<i class="fas fa-user-nurse" style="color:var(--accent);font-size:20px"></i>' +
+    '<div><div style="font-weight:700">' + nurseName + '</div>' +
+    '<div style="color:var(--text-muted);font-size:12px">' + jobTitle + '</div></div></div>';
+
+  clearAlert('interviewAlert');
+  openModal('interviewModal');
+}
+
+async function saveInterview() {
+  var date  = document.getElementById('interviewDate').value;
+  var time  = document.getElementById('interviewTime').value;
+  var notes = document.getElementById('interviewNotes').value.trim();
+
+  if (!date || !time) {
+    showAlert('interviewAlert', 'التاريخ والوقت مطلوبين', 'error');
+    return;
+  }
+
+  var scheduledAt = new Date(date + 'T' + time).toISOString();
+
+  // Save interview
+  var { data: iv, error } = await sb.from('interviews').insert({
+    application_id: _currentInterviewAppId,
+    nurse_id:       _currentInterviewNurseId,
+    hospital_id:    currentUser.id,
+    job_id:         _currentInterviewJobId,
+    scheduled_at:   scheduledAt,
+    notes:          notes || null,
+  }).select().single();
+
+  if (error) {
+    showAlert('interviewAlert', 'حصل خطأ: ' + error.message, 'error');
+    return;
+  }
+
+  // Format date for notification
+  var dateStr = new Date(scheduledAt).toLocaleDateString('ar-EG', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  // Send notification to nurse
+  var hospitalName = currentProfile ? (currentProfile.hospital_name || 'المنشأة') : 'المنشأة';
+  await sendNotification(
+    _currentInterviewNurseId,
+    'interview_scheduled',
+    '📅 دعوة مقابلة شخصية',
+    hospitalName + ' دعوتك لمقابلة على وظيفة "' + _currentInterviewJobTitle + '" — ' + dateStr + (notes ? ' — ' + notes : ''),
+    { app_id: _currentInterviewAppId, job_id: _currentInterviewJobId, interview_id: iv.id, scheduled_at: scheduledAt }
+  );
+
+  closeModal('interviewModal');
+  showToast('✅ تم إرسال دعوة المقابلة للممرض');
+}
+
+async function loadMyInterviews() {
+  if (!currentUser || currentRole !== 'nurse') return;
+  var { data, error } = await sb.from('interviews')
+    .select('*, job_postings(title, city), hospitals(hospital_name, avatar_url)')
+    .eq('nurse_id', currentUser.id)
+    .order('scheduled_at', { ascending: true });
+  return data || [];
+}
+
+
+// ========== INTERVIEWS LISTS ==========
+
+function formatInterviewDate(isoStr) {
+  return new Date(isoStr).toLocaleDateString('ar-EG', {
+    weekday: 'long', year: 'numeric', month: 'long',
+    day: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+}
+
+function isUpcoming(isoStr) {
+  return new Date(isoStr) > new Date();
+}
+
+// ── Nurse side ────────────────────────────────────────────────────
+async function loadNurseInterviews() {
+  var list = document.getElementById('nurseInterviewsList');
+  if (!list) return;
+  list.innerHTML = '<div class="loading"><div class="spinner"></div> جاري التحميل...</div>';
+
+  var { data, error } = await sb.from('interviews')
+    .select('*, job_postings(title, city, shift_type), hospitals(hospital_name, avatar_url, facility_type)')
+    .eq('nurse_id', currentUser.id)
+    .order('scheduled_at', { ascending: true });
+
+  if (!data || !data.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📅</div><p style="color:var(--text-muted)">مفيش مقابلات محددة لك لحد دلوقتي</p></div>';
+    return;
+  }
+
+  list.innerHTML = data.map(function(iv) {
+    var upcoming = isUpcoming(iv.scheduled_at);
+    var dateStr  = formatInterviewDate(iv.scheduled_at);
+    var hosp     = iv.hospitals || {};
+    var job      = iv.job_postings || {};
+    var badgeStyle = upcoming
+      ? 'background:#ede9fe;color:#7c3aed;'
+      : 'background:var(--bg);color:var(--text-muted);';
+
+    return '<div style="display:flex;gap:14px;align-items:flex-start;padding:16px;border:1.5px solid ' + (upcoming ? '#c4b5fd' : 'var(--border)') + ';border-radius:var(--radius);margin-bottom:12px;background:' + (upcoming ? '#faf5ff' : 'var(--white)') + '">' +
+      (hosp.avatar_url
+        ? '<img src="' + hosp.avatar_url + '" style="width:48px;height:48px;border-radius:12px;object-fit:cover;border:2px solid var(--border);flex-shrink:0">'
+        : '<div class="hospital-avatar" style="width:48px;height:48px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;background:var(--bg)">🏥</div>') +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">' +
+          '<span style="font-weight:800;font-size:15px">' + (hosp.hospital_name || 'المنشأة') + '</span>' +
+          (hosp.facility_type ? '<span style="font-size:11px;background:var(--accent-light);color:var(--primary);padding:1px 7px;border-radius:20px;font-weight:700">' + hosp.facility_type + '</span>' : '') +
+          '<span style="font-size:11px;padding:2px 10px;border-radius:20px;font-weight:700;' + badgeStyle + '">' + (upcoming ? '⏰ قادم' : '✓ انتهى') + '</span>' +
+        '</div>' +
+        '<div style="font-size:13px;color:var(--text-muted);margin-bottom:6px">' +
+          '<i class="fas fa-briefcase-medical" style="margin-left:4px"></i>' + (job.title || '') +
+          (job.city ? ' &bull; ' + job.city : '') +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#7c3aed">' +
+          '<i class="fas fa-calendar-alt"></i> ' + dateStr +
+        '</div>' +
+        (iv.notes ? '<div style="margin-top:8px;font-size:12px;color:var(--text-muted);background:var(--bg);padding:8px 12px;border-radius:8px"><i class="fas fa-sticky-note" style="margin-left:4px"></i>' + iv.notes + '</div>' : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ── Hospital side ─────────────────────────────────────────────────
+async function loadHospitalInterviews() {
+  var list = document.getElementById('hospitalInterviewsList');
+  if (!list) return;
+  list.innerHTML = '<div class="loading"><div class="spinner"></div> جاري التحميل...</div>';
+
+  var { data, error } = await sb.from('interviews')
+    .select('*, job_postings(title, city), nurses(full_name, phone, avatar_url, city)')
+    .eq('hospital_id', currentUser.id)
+    .order('scheduled_at', { ascending: true });
+
+  if (!data || !data.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📅</div><p style="color:var(--text-muted)">مفيش مقابلات محددة لحد دلوقتي</p></div>';
+    return;
+  }
+
+  // Group by upcoming / past
+  var upcoming = data.filter(function(iv){ return isUpcoming(iv.scheduled_at); });
+  var past     = data.filter(function(iv){ return !isUpcoming(iv.scheduled_at); });
+
+  function renderIvCard(iv) {
+    var nurse = iv.nurses || {};
+    var job   = iv.job_postings || {};
+    var up    = isUpcoming(iv.scheduled_at);
+    var dateStr = formatInterviewDate(iv.scheduled_at);
+    return '<div style="display:flex;gap:14px;align-items:flex-start;padding:16px;border:1.5px solid ' + (up ? '#c4b5fd' : 'var(--border)') + ';border-radius:var(--radius);margin-bottom:12px;background:' + (up ? '#faf5ff' : 'var(--white)') + '">' +
+      (nurse.avatar_url
+        ? '<img src="' + nurse.avatar_url + '" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--border);flex-shrink:0">'
+        : '<div class="nurse-avatar" style="width:48px;height:48px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px">👤</div>') +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">' +
+          '<span style="font-weight:800;font-size:15px">' + (nurse.full_name || 'ممرض') + '</span>' +
+          (nurse.city ? '<span style="font-size:12px;color:var(--text-muted)"><i class="fas fa-map-marker-alt"></i> ' + nurse.city + '</span>' : '') +
+          '<span style="font-size:11px;padding:2px 10px;border-radius:20px;font-weight:700;' + (up ? 'background:#ede9fe;color:#7c3aed' : 'background:var(--bg);color:var(--text-muted)') + '">' + (up ? '⏰ قادم' : '✓ انتهى') + '</span>' +
+        '</div>' +
+        '<div style="font-size:13px;color:var(--text-muted);margin-bottom:6px">' +
+          '<i class="fas fa-briefcase-medical" style="margin-left:4px"></i>' + (job.title || '') +
+          (job.city ? ' &bull; ' + job.city : '') +
+          (nurse.phone ? ' &bull; <a href="tel:' + nurse.phone + '" style="color:var(--accent)">' + nurse.phone + '</a>' : '') +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#7c3aed">' +
+          '<i class="fas fa-calendar-alt"></i> ' + dateStr +
+        '</div>' +
+        (iv.notes ? '<div style="margin-top:8px;font-size:12px;color:var(--text-muted);background:var(--bg);padding:8px 12px;border-radius:8px"><i class="fas fa-sticky-note" style="margin-left:4px"></i>' + iv.notes + '</div>' : '') +
+      '</div>' +
+      '<button onclick="deleteInterview(\'' + iv.id + '\')" title="حذف" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:4px;opacity:0.6" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">' +
+        '<i class="fas fa-trash"></i>' +
+      '</button>' +
+    '</div>';
+  }
+
+  var html = '';
+  if (upcoming.length) {
+    html += '<div style="font-size:13px;font-weight:800;color:#7c3aed;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="fas fa-clock"></i> المقابلات القادمة (' + upcoming.length + ')</div>';
+    html += upcoming.map(renderIvCard).join('');
+  }
+  if (past.length) {
+    html += '<div style="font-size:13px;font-weight:800;color:var(--text-muted);margin:18px 0 10px;display:flex;align-items:center;gap:6px"><i class="fas fa-history"></i> مقابلات سابقة (' + past.length + ')</div>';
+    html += past.map(renderIvCard).join('');
+  }
+  list.innerHTML = html;
+}
+
+async function deleteInterview(ivId) {
+  if (!confirm('مسح هذا الموعد؟')) return;
+  await sb.from('interviews').delete().eq('id', ivId);
+  loadHospitalInterviews();
+}
+

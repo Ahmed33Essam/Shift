@@ -23,6 +23,26 @@
     </div>
     <div id="navUser" class="hidden" style="display:none;align-items:center;gap:8px">
       <span id="navUserName" style="font-weight:700;color:var(--primary);font-size:14px"></span>
+      <!-- Notification Bell -->
+      <div style="position:relative">
+        <button id="notifBell" onclick="toggleNotifPanel()" title="الإشعارات"
+          style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;padding:6px;border-radius:8px;position:relative;transition:color 0.2s"
+          onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-muted)'">
+          <i class="fas fa-bell"></i>
+          <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;font-size:9px;font-weight:800;border-radius:50%;width:16px;height:16px;line-height:16px;text-align:center"></span>
+        </button>
+        <!-- Notification Panel -->
+        <div id="notifPanel" style="display:none;position:fixed;top:60px;left:16px;right:16px;max-width:380px;margin:0 auto;width:auto;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,0.18);z-index:9999;overflow:hidden">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)">
+            <span style="font-weight:800;font-size:15px">الإشعارات</span>
+            <div style="display:flex;gap:8px">
+              <button onclick="markAllNotifsRead()" style="background:none;border:none;font-size:12px;color:var(--text-muted);cursor:pointer;font-family:inherit" title="تحديد الكل كمقروء">تحديد كمقروء</button>
+              <button onclick="clearAllNotifs()" style="background:none;border:none;font-size:12px;color:#ef4444;cursor:pointer;font-family:inherit" title="مسح الكل">مسح الكل</button>
+            </div>
+          </div>
+          <div id="notifList" style="max-height:380px;overflow-y:auto"></div>
+        </div>
+      </div>
       <div id="navAvatarWrap" onclick="currentRole==='nurse'?showProfileModal():showFacilityProfileModal()" title="الملف الشخصي" style="cursor:pointer"></div>
       <button class="btn btn-danger btn-sm" onclick="logout()" style="padding:7px 12px"><i class="fas fa-sign-out-alt"></i><span class="btn-text"> خروج</span></button>
     </div>
@@ -167,7 +187,7 @@
               <input type="number" id="nurseExp" placeholder="3" min="0" max="50">
             </div>
           </div>
-          <div class="form-group" style="margin-bottom:24px;position:relative;z-index:10">
+          <div class="form-group" style="margin-bottom:60px;position:relative;z-index:100">
             <label>التخصصات (اختر أكتر من واحد)</label>
             <div class="multi-select-box" id="specSelectBox">
               <div class="multi-select-chosen" id="specChosen" onclick="toggleSpecDropdown()">
@@ -195,6 +215,33 @@
             <label>نبذة عنك</label>
             <textarea id="nurseBio" placeholder="اكتب نبذة مختصرة عن تجربتك وأهدافك المهنية..."></textarea>
           </div>
+
+          <!-- Gender / Marital / Birth Year -->
+          <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+            <div class="form-group">
+              <label>النوع</label>
+              <select id="nurseGender">
+                <option value="">اختر</option>
+                <option value="male">ذكر</option>
+                <option value="female">أنثى</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>الحالة الاجتماعية</label>
+              <select id="nurseMarital">
+                <option value="">اختر</option>
+                <option value="single">أعزب / عزباء</option>
+                <option value="married">متزوج / متزوجة</option>
+                <option value="divorced">مطلق / مطلقة</option>
+                <option value="widowed">أرمل / أرملة</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>سنة الميلاد</label>
+              <input type="number" id="nurseBirthYear" placeholder="مثال: 1995" min="1950" max="2005" />
+            </div>
+          </div>
+
           <div class="form-group">
             <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
               <span style="background:var(--accent);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px">
@@ -388,6 +435,7 @@
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('nurse', 'jobs', this)"><i class="fas fa-list"></i> الوظائف المتاحة</button>
       <button class="tab-btn" onclick="switchTab('nurse', 'myapps', this)"><i class="fas fa-paper-plane"></i> طلباتي</button>
+      <button class="tab-btn" onclick="switchTab('nurse', 'interviews', this)"><i class="fas fa-calendar-check"></i> مقابلاتي</button>
     </div>
 
     <!-- Jobs Tab -->
@@ -438,10 +486,25 @@
 
     <!-- My Applications Tab -->
     <div id="nurse-tab-myapps" class="hidden">
+      <!-- Status filter tabs -->
+      <div style="display:flex;gap:8px;margin-bottom:18px;border-bottom:2px solid var(--border);padding-bottom:0;overflow-x:auto">
+        <button id="appsTab_all"      onclick="filterMyApps('all')"      class="apps-tab-btn apps-tab-active">الكل</button>
+        <button id="appsTab_pending"  onclick="filterMyApps('pending')"  class="apps-tab-btn">قيد المراجعة</button>
+        <button id="appsTab_accepted" onclick="filterMyApps('accepted')" class="apps-tab-btn">مقبول ✅</button>
+        <button id="appsTab_rejected" onclick="filterMyApps('rejected')" class="apps-tab-btn">مرفوض ❌</button>
+      </div>
       <div id="myApplicationsList">
         <div class="loading"><div class="spinner"></div> جاري التحميل...</div>
       </div>
     </div>
+
+    <!-- Interviews Tab (Nurse) -->
+    <div id="nurse-tab-interviews" class="hidden">
+      <div id="nurseInterviewsList">
+        <div class="loading"><div class="spinner"></div> جاري التحميل...</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -499,6 +562,7 @@
       <button class="tab-btn active" onclick="switchTab('hospital', 'myjobs', this)"><i class="fas fa-list-alt"></i> وظائفي</button>
       <button class="tab-btn" onclick="switchTab('hospital', 'applications', this)"><i class="fas fa-inbox"></i> الطلبات الواردة</button>
       <button class="tab-btn" onclick="switchTab('hospital', 'completed', this)"><i class="fas fa-check-circle"></i> الوظائف المكتملة</button>
+      <button class="tab-btn" onclick="switchTab('hospital', 'interviews', this)"><i class="fas fa-calendar-check"></i> المقابلات</button>
     </div>
 
     <!-- My Jobs Tab -->
@@ -521,6 +585,14 @@
         <div class="loading"><div class="spinner"></div> جاري التحميل...</div>
       </div>
     </div>
+
+    <!-- Interviews Tab (Hospital) -->
+    <div id="hospital-tab-interviews" class="hidden">
+      <div id="hospitalInterviewsList">
+        <div class="loading"><div class="spinner"></div> جاري التحميل...</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -685,7 +757,7 @@
             <input type="number" id="editNurseExp" min="0">
           </div>
         </div>
-        <div class="form-group" style="margin-bottom:24px;position:relative;z-index:10">
+        <div class="form-group" style="margin-bottom:60px;position:relative;z-index:100">
           <label>التخصصات (اختر أكتر من واحد)</label>
           <div class="multi-select-box" id="editSpecSelectBox">
             <div class="multi-select-chosen" id="editSpecChosen" onclick="toggleEditSpecDropdown()">
@@ -712,6 +784,33 @@
           <label>نبذة عنك</label>
           <textarea id="editNurseBio"></textarea>
         </div>
+
+        <!-- Gender / Marital / Birth Year -->
+        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+          <div class="form-group">
+            <label>النوع</label>
+            <select id="editNurseGender">
+              <option value="">اختر</option>
+              <option value="male">ذكر</option>
+              <option value="female">أنثى</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>الحالة الاجتماعية</label>
+            <select id="editNurseMarital">
+              <option value="">اختر</option>
+              <option value="single">أعزب / عزباء</option>
+              <option value="married">متزوج / متزوجة</option>
+              <option value="divorced">مطلق / مطلقة</option>
+              <option value="widowed">أرمل / أرملة</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>سنة الميلاد</label>
+            <input type="number" id="editNurseBirthYear" placeholder="1995" min="1950" max="2005" />
+          </div>
+        </div>
+
         <div class="form-group">
           <label>📎 صور الشهادات والاعتمادات</label>
           <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;line-height:1.6">
@@ -960,6 +1059,8 @@
         <i class="fas fa-plus"></i> إضافة مكان عمل
       </button>
 
+      <div id="totalExpBadge" style="display:none;margin-top:8px;font-size:12px;color:var(--accent);font-weight:700;text-align:center;background:var(--accent-light);padding:6px 12px;border-radius:6px"></div>
+
       <div id="cvExtraAlert" style="margin-top:10px"></div>
     </div>
     <div class="modal-footer">
@@ -998,8 +1099,46 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('cvModal')">إلغاء</button>
+      <button class="btn btn-outline btn-sm" onclick="resetCvData()" style="color:var(--text-muted);border-color:var(--border);margin-left:auto" title="مسح البيانات وإعادة الإدخال">
+        <i class="fas fa-redo"></i> إعادة تعيين
+      </button>
       <button class="btn btn-primary" id="cvDownloadBtn" onclick="downloadCV()" disabled style="opacity:0.5">
         <i class="fas fa-download"></i> تحميل PDF
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ==================== INTERVIEW MODAL ==================== -->
+<div class="modal-overlay hidden" id="interviewModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3><i class="fas fa-calendar-check" style="color:var(--accent)"></i> تحديد موعد المقابلة</h3>
+      <button class="modal-close" onclick="closeModal('interviewModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="interviewAppInfo" style="background:var(--bg);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;font-size:13px"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>التاريخ <span style="color:#ef4444">*</span></label>
+          <input type="date" id="interviewDate" />
+        </div>
+        <div class="form-group">
+          <label>الوقت <span style="color:#ef4444">*</span></label>
+          <input type="time" id="interviewTime" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>ملاحظات (اختياري)</label>
+        <textarea id="interviewNotes" placeholder="مثال: المقابلة أونلاين على Zoom / في مقر المستشفى" style="height:70px"></textarea>
+      </div>
+      <div id="interviewAlert" style="margin-top:8px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('interviewModal')">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveInterview()">
+        <i class="fas fa-paper-plane"></i> إرسال الدعوة
       </button>
     </div>
   </div>

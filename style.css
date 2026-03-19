@@ -1091,6 +1091,27 @@
     }
   }
 
+  /* Applications status tabs */
+  .apps-tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 8px 16px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+  }
+  .apps-tab-btn:hover { color: var(--primary); }
+  .apps-tab-active {
+    color: var(--primary) !important;
+    border-bottom-color: var(--primary) !important;
+  }
+
   .w-full { width: 100%; }
   .mt-4 { margin-top: 16px; }
   .mb-4 { margin-bottom: 16px; }
@@ -1121,16 +1142,16 @@
     position: absolute;
     top: calc(100% + 4px);
     right: 0; left: 0;
-    background: white;
+    background: var(--white);
     border: 2px solid var(--accent);
     border-radius: var(--radius-sm);
-    z-index: 999;
+    z-index: 9999;
     padding: 8px;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 4px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-    max-height: 250px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    max-height: 220px;
     overflow-y: auto;
   }
   .multi-select-option {
